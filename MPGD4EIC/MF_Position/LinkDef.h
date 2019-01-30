@@ -1,2 +1,2 @@
-#pragma link C++ class MF_Position+;
+#pragma link C++ class MF_Position-;
 

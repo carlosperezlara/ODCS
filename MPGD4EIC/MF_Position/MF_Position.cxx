@@ -21,6 +21,8 @@
 
 #include "MF_Position.h"
 
+ClassImp(MF_Position);
+
 void MF_Position::CreateCellArray(TGCompositeFrame *mf) {
   TGCompositeFrame *fFCell[10];
   TGLabel *lab = new TGLabel(mf,"Pre-Loaded Values");

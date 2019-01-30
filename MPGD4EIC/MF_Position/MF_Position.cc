@@ -1,6 +1,5 @@
 #include <TGClient.h>
 #include "MF_Position.h"
-#include "MF_Position.cxx"
 
 //====================
 //====================

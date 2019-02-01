@@ -20,7 +20,8 @@ class MC_Velmex {
   void Abort();
   void MoveRelative(Int_t midx, Int_t units);
   void SetStepsPerUnit(Int_t val) { fStepsPerUnit = val; }
-
+  Bool_t IsReady() {return kTRUE;}
+  
   ClassDef(MC_Velmex, 0)
 };
 

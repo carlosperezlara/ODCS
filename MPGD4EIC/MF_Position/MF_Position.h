@@ -14,6 +14,8 @@
 #include <TGraph.h>
 #include <TTimer.h>
 
+#include "MC_Velmex.h"
+
 class MF_Position : public TGMainFrame {
  private:
   TApplication *fApp;
@@ -47,6 +49,7 @@ class MF_Position : public TGMainFrame {
   Pixel_t fPixelBlack;
   Pixel_t fPixelGreen;
   Pixel_t fPixelDefaultBgr;
+  MC_Velmex *fMotor;
 
   void CreateCellArray(TGCompositeFrame*);
   void CreateControlTextX(TGCompositeFrame*);

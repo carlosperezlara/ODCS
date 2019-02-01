@@ -32,7 +32,7 @@ void StandardDeviceConnection::Init() {
 //======
 void StandardDeviceConnection::Send(TString word) {
   if(fFileDescriptor<0) {
-    std::cout << "StandardDeviceConnection::Send() please call Init() first!" << std::endl;
+    std::cout << "StandardDeviceConnection::Send() no valid file descriptor, forgot to call Init()?" << std::endl;
     return;
   }
   ssize_t len = write(fFileDescriptor, word, word.Length());

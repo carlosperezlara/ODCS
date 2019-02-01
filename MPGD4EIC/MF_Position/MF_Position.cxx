@@ -21,6 +21,7 @@
 #include <iostream>
 
 #include "MF_Position.h"
+#include "MC_Velmex.h"
 
 ClassImp(MF_Position);
 
@@ -50,6 +51,7 @@ void MF_Position::SetObj() {
 //====================
 void MF_Position::LoadLogX() {
   fGTXlog->LoadFile(Form("%sPositionX.log",sPath.Data()));
+  std::cout << "  " << Form("%sPositionX.log",sPath.Data()) << std::endl;
   fGTXlog->SetReadOnly(kTRUE);
   fGTXlog->GetText();
   fGTXlog->Goto( fGTXlog->GetText()->RowCount() , 0 );
@@ -57,6 +59,7 @@ void MF_Position::LoadLogX() {
 //====================
 void MF_Position::LoadLogY() {
   fGTYlog->LoadFile(Form("%sPositionY.log",sPath.Data()));
+  std::cout << "  " << Form("%sPositionY.log",sPath.Data()) << std::endl;
   fGTYlog->SetReadOnly(kTRUE);
   fGTYlog->GetText();
   fGTYlog->Goto( fGTYlog->GetText()->RowCount() , 0 );
@@ -186,17 +189,27 @@ void MF_Position::UpdateXYState() {
 }
 //====================
 void MF_Position::PrepareMove() {
-  UpdateXYState();
+  if(!fMotor->IsReady()) {
+    fMove->SetEnabled(kFALSE);
+    fCancel->SetEnabled(kTRUE);
+    fReset->SetEnabled(kFALSE);
+    fClose->SetEnabled(kFALSE);
+    return;
+  }
+
+  fMove->SetEnabled(kFALSE);
   fCancel->SetEnabled(kFALSE);
+  fReset->SetEnabled(kFALSE);
   fClose->SetEnabled(kTRUE);
+
   bool dosomething = false;
-  if(fXobj!=fXnow) {
+  if(fXobj!=fXmust) {
     fGLXsta->SetText( " setting to " );
     fGLXsta->SetForegroundColor(fPixelRed);
     fGTXobj->GetNumberEntry()->SetForegroundColor(fPixelRed);
     dosomething = true;
   }
-  if(fYobj!=fYnow) {
+  if(fYobj!=fYmust) {
     fGLYsta->SetText( " setting to " );
     fGLYsta->SetForegroundColor(fPixelRed);
     fGTYobj->GetNumberEntry()->SetForegroundColor(fPixelRed);
@@ -206,17 +219,7 @@ void MF_Position::PrepareMove() {
     fMove->SetEnabled(kTRUE);
     fReset->SetEnabled(kTRUE);
     fMove->SetBackgroundColor(fPixelGreen);
-  } else {
-    fMove->SetEnabled(kFALSE);
-    fReset->SetEnabled(kFALSE);
-    fGLXsta->SetText( " reached " );
-    fGLYsta->SetText( " reached " );
-    fGLXsta->SetForegroundColor(fPixelBlack);
-    fGLYsta->SetForegroundColor(fPixelBlack);
-    fGTXobj->GetNumberEntry()->SetForegroundColor(fPixelBlack);
-    fGTYobj->GetNumberEntry()->SetForegroundColor(fPixelBlack);
   }
-  ReadPositions();
 }
 //====================
 void MF_Position::ResetXY() {
@@ -226,60 +229,69 @@ void MF_Position::ResetXY() {
 }
 //====================
 void MF_Position::CancelXY() {
-  ResetXY();
+  fMotor->Abort();
   PrepareMove();
 }
 //====================
 void MF_Position::MoveXY() {
+  fCallReadPositions->TurnOff();
+  std::cout << "CallMoveXY" << std::endl;
+  if( (fXmust==fXobj) && (fYmust==fYobj) ) return;
+
+  std::cout << "Something to do" << std::endl;
   fMove->SetEnabled(kFALSE);
   fReset->SetEnabled(kFALSE);
   fCancel->SetEnabled(kTRUE);
   fClose->SetEnabled(kFALSE);
-  fXmust = fXobj;
-  fYmust = fYobj;
-  bool moveInX = false;
-  bool moveInY = false;
-  while(fXmust!=fXnow) {
-    fGLXsta->SetText( " moving to " );
-    fGLXsta->SetForegroundColor(fPixelGreen);
-    UpdateXYState();
-    //CONTROL GOES HERE
-    fXnow = fXmust;
-    moveInX = true;
-  }
-  while(fYmust!=fYnow) {
-    fGLYsta->SetText( " moving to " );
-    fGLYsta->SetForegroundColor(fPixelGreen);
-    UpdateXYState();
-    //CONTROL GOES HERE
-    fYnow = fYmust;
-    moveInY = true;
-  }
+
   TTimeStamp timestamp;
   TString ts = timestamp.AsString("s");;
-  if(moveInX) {
-    std::ofstream foutX( Form("%sPositionx.log",sPath.Data()),std::ofstream::out|std::ofstream::app);
-    foutX << Form("%s => %d mm",ts.Data(),fXnow) << std::endl;
+  if(fXmust!=fXobj) {
+    fXmust = fXobj;
+    fGLXsta->SetText( " moving to " );
+    fGLXsta->SetForegroundColor(fPixelGreen);
+    std::ofstream foutX( Form("%sPositionX.log",sPath.Data()),std::ofstream::out|std::ofstream::app);
+    foutX << Form("%s => %d mm",ts.Data(),fXmust) << std::endl;
     foutX.close();
+    LoadLogX();
   }
-  if(moveInY) {
+  if(fYmust!=fYobj) {
+    fYmust = fYobj;
+    fGLYsta->SetText( " moving to " );
+    fGLYsta->SetForegroundColor(fPixelGreen);
     std::ofstream foutY( Form("%sPositionY.log",sPath.Data()),std::ofstream::out|std::ofstream::app);
-    foutY << Form("%s => %d mm",ts.Data(),fYnow) << std::endl;
+    foutY << Form("%s => %d mm",ts.Data(),fYmust) << std::endl;
     foutY.close();
+    LoadLogY();
   }
-  std::ofstream foutL( Form("%sLast.log",sPath.Data()));
-  foutL << fXnow << " " << fYnow << std::endl;
-  foutL.close();
 
-  LoadLogs();
   PrepareMove();
+  fCallReadPositions->TurnOn();
 }
 //====================
 void MF_Position::ReadPositions() {
   //HERE WE READ FROM SCALER
+  //std::cout << " ==> ";
+  //std::cout << fXnow << " " << fXmust << " " << fXobj << " | ";
+  //std::cout << fYnow << " " << fYmust << " " << fYobj << std::endl;
   fXnow = fXmust;
   fYnow = fYmust;
+  std::ofstream foutL( Form("%sLast.log",sPath.Data()));
+  foutL << fXnow << " " << fYnow << std::endl;
+  foutL.close();
   UpdatePointer();
+  UpdateXYState();
+
+  if((fXnow==fXmust)&&(fXmust==fXobj)) {
+    fGLXsta->SetText( " reached " );
+    fGLXsta->SetForegroundColor(fPixelBlack);
+    fGTXobj->GetNumberEntry()->SetForegroundColor(fPixelBlack);
+  }
+  if((fYnow==fYmust)&&(fYmust==fYobj)) {
+    fGLYsta->SetText( " reached " );
+    fGLYsta->SetForegroundColor(fPixelBlack);
+    fGTYobj->GetNumberEntry()->SetForegroundColor(fPixelBlack);
+  }
   //std::cout << "called ReadPositions" << std::endl;
 }
 //====================
@@ -304,6 +316,8 @@ void MF_Position::ChangeCoordsFromCell(const char* rc) {
 }
 //====================
 MF_Position::MF_Position(TApplication *app, UInt_t w, UInt_t h) : TGMainFrame(gClient->GetRoot(), w, h) {
+  fMotor = new MC_Velmex();
+  fMotor->Connect();
   fApp = app;
   sPath = "./Position_Data/";
   fPointer = NULL;
@@ -326,10 +340,10 @@ MF_Position::MF_Position(TApplication *app, UInt_t w, UInt_t h) : TGMainFrame(gC
     fXmust = xx;
     fYmust = yy;
   }
-  fXobj = fXmust;
-  fYobj = fYmust;
+  fXnow = fXobj = fXmust;
+  fYnow = fYobj = fYmust;
   finL.close();
-  ReadPositions();
+  //ReadPositions();
 
   TGCompositeFrame *fMainFrames_R1;
   TGCompositeFrame *fMainFrames_R1C1;
@@ -382,5 +396,6 @@ MF_Position::MF_Position(TApplication *app, UInt_t w, UInt_t h) : TGMainFrame(gC
 MF_Position::~MF_Position() {
   Cleanup();
   fCallReadPositions->TurnOff();
+  if(fMotor) delete fMotor;
   fApp->Terminate();
 }

@@ -1,6 +1,7 @@
 #ifndef MF_POSITION
 #define MF_POSITION
 
+#include <TApplication.h>
 #include <TGFrame.h>
 #include <TGButton.h>
 #include <TGLabel.h>
@@ -15,6 +16,7 @@
 
 class MF_Position : public TGMainFrame {
  private:
+  TApplication *fApp;
   TString sPath;
   Int_t fPreLoaded[10][10][2];
   TGTextButton     *fCell[10][10];
@@ -53,7 +55,7 @@ class MF_Position : public TGMainFrame {
   void CreateEyes(TGCompositeFrame*);
 
  public:
-  MF_Position(const TGWindow *p, UInt_t w, UInt_t h);
+  MF_Position(TApplication *app, UInt_t w, UInt_t h);
   virtual ~MF_Position();
   void ChangeCoordsFromCell(const char* rc);
   void PrepareMove();

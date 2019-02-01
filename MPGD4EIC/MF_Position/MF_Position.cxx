@@ -1,3 +1,4 @@
+#include <TApplication.h>
 #include <TGFrame.h>
 #include <TGClient.h>
 #include <TGButton.h>
@@ -302,7 +303,8 @@ void MF_Position::ChangeCoordsFromCell(const char* rc) {
   fCell[9-row][col]->SetState(kButtonUp);
 }
 //====================
-MF_Position::MF_Position(const TGWindow *p, UInt_t w, UInt_t h) : TGMainFrame(p, w, h) {
+MF_Position::MF_Position(TApplication *app, UInt_t w, UInt_t h) : TGMainFrame(gClient->GetRoot(), w, h) {
+  fApp = app;
   sPath = "./Position_Data/";
   fPointer = NULL;
   gClient->GetColorByName("blue", fPixelBlue);
@@ -378,5 +380,7 @@ MF_Position::MF_Position(const TGWindow *p, UInt_t w, UInt_t h) : TGMainFrame(p,
 }
 //====================
 MF_Position::~MF_Position() {
-  //Cleanup();
+  Cleanup();
+  fCallReadPositions->TurnOff();
+  fApp->Terminate();
 }

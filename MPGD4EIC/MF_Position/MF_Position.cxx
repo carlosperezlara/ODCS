@@ -378,5 +378,5 @@ MF_Position::MF_Position(const TGWindow *p, UInt_t w, UInt_t h) : TGMainFrame(p,
 }
 //====================
 MF_Position::~MF_Position() {
-   Cleanup();
+  //Cleanup();
 }

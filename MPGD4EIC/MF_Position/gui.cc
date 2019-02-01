@@ -6,7 +6,7 @@
 //====================
 //====================
 //====================
-int Run_MF_Position() {
+int main() {
   // Popup the GUI...
   new MF_Position(gClient->GetRoot(), 900, 800);
   return 0;

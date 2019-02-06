@@ -13,6 +13,7 @@ void MC_Velmex::Execute(TString cmd) {
   // R : Run currently selected program
   TString fullCommand = "C,"+cmd+",R";
   fDevice->Send(fullCommand);
+  std::cout << "Execute: " << fullCommand.Data() << std::endl;
 }
 //====================
 void MC_Velmex::Connect() {
@@ -43,10 +44,24 @@ void MC_Velmex::ExecuteMoveRelative(Int_t midx,Int_t nsteps) {
   TString cmdstr;
   //cmdstr = Form("IA%dM-0,",fMotorIndex);
   //cmdstr += Form("IA%dM%d",fMotorIndex,nsteps);
-  cmdstr += Form("I%dM%d",midx,nsteps);
+  if(nsteps!=0)
+    cmdstr += Form("I%dM%d",midx,nsteps);
   Execute(cmdstr);
 }
-
+//====================
+void MC_Velmex::ExecuteMoveRelative(Int_t midx,Int_t nsteps,Int_t midx2,Int_t nsteps2) {
+  // IAmMx: Set Absolute Index distance, m=motor# (1-4), x=+-1 to +-16777215 steps
+  // IAmM0: Index motor to Absolute zero position, m=motor# (1-4)
+  // IAmM-0: Zero motor position for motor# m (1-4)
+  TString cmdstr;
+  //cmdstr = Form("IA%dM-0,",fMotorIndex);
+  //cmdstr += Form("IA%dM%d",fMotorIndex,nsteps);
+  if(nsteps!=0)
+    cmdstr += Form("I%dM%d,",midx,nsteps);
+  if(nsteps2!=0)
+    cmdstr += Form("I%dM%d",midx2,nsteps2);
+  Execute(cmdstr);
+}
 //====================
 MC_Velmex::MC_Velmex(TString port) {
   fDevice = new StandardDeviceConnection(port,2/*2=O_RDWR, 1=O_WRONLY*/);
@@ -56,4 +71,13 @@ MC_Velmex::MC_Velmex(TString port) {
 MC_Velmex::~MC_Velmex() {
   delete fDevice;
   fDevice = 0;
+}
+//====================
+void MC_Velmex::MoveRelative(Int_t midx, Int_t units) {
+  ExecuteMoveRelative(midx,units*fStepsPerUnit[midx]);
+}
+//====================
+void MC_Velmex::MoveRelative(Int_t midx, Int_t units, Int_t midx2, Int_t units2) {
+  ExecuteMoveRelative(midx, units*fStepsPerUnit[midx],
+		      midx2,units2*fStepsPerUnit[midx2]);
 }

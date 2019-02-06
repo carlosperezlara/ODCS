@@ -254,6 +254,7 @@ void MF_Position::MoveXY() {
     foutX << Form("%s => %d mm",ts.Data(),fXmust) << std::endl;
     foutX.close();
     LoadLogX();
+    std::cout << "XXX" << fXmust-fXnow << std::endl;
   }
   if(fYmust!=fYobj) {
     fYmust = fYobj;
@@ -263,7 +264,9 @@ void MF_Position::MoveXY() {
     foutY << Form("%s => %d mm",ts.Data(),fYmust) << std::endl;
     foutY.close();
     LoadLogY();
+    std::cout << "YYY" << fYmust-fYnow << std::endl;
   }
+  fMotor->MoveRelative(1,fXmust-fXnow,2,fYmust-fYnow);
 
   PrepareMove();
   fCallReadPositions->TurnOn();
@@ -304,7 +307,7 @@ void MF_Position::ChangeCoordsFromCell(const char* rc) {
   int row = tmpR.Atoi();
   int col = 0;
   for(int i=0; i!=10; ++i) {
-    if(tmpC==cellstr[i])
+   if(tmpC==cellstr[i])
       col = i;
   }
   std::cout << tmpC << "(" << col << ") " << row << std::endl;
@@ -318,6 +321,8 @@ void MF_Position::ChangeCoordsFromCell(const char* rc) {
 MF_Position::MF_Position(TApplication *app, UInt_t w, UInt_t h) : TGMainFrame(gClient->GetRoot(), w, h) {
   fMotor = new MC_Velmex();
   fMotor->Connect();
+  fMotor->SetStepsPerUnit(1,300);
+  fMotor->SetStepsPerUnit(2,30);
   fApp = app;
   sPath = "./Position_Data/";
   fPointer = NULL;

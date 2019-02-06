@@ -22,6 +22,7 @@ class StandardDeviceConnection {
   void SetDeviceAccessMode(Int_t val) {fMode = val;}
   void Init();
   void Send(TString);
+  TString Receive(Int_t);
 
   ClassDef(StandardDeviceConnection, 0)
 };

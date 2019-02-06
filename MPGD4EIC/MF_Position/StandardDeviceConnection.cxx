@@ -40,6 +40,23 @@ void StandardDeviceConnection::Send(TString word) {
     std::cout << "StandardDeviceConnection::Send() was interrupted!" << std::endl;
   }
 }
+//======
+TString StandardDeviceConnection::Receive(Int_t nbytes) {
+  if(fFileDescriptor<0) {
+    std::cout << "StandardDeviceConnection::Receive() no valid file descriptor, forgot to call Init()?" << std::endl;
+    return "";
+  }
+  if(nbytes>=100) {
+    return "";
+  }
+  char word[100];
+  TString sword;
+  ssize_t len = read(fFileDescriptor, word, nbytes);
+  if(len!=sword.Length()) {
+    std::cout << "StandardDeviceConnection::Send() was interrupted!" << std::endl;
+  }
+  return sword;
+}
 
 /*
 int main() {

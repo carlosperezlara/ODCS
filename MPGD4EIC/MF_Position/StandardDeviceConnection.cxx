@@ -68,9 +68,9 @@ TString StandardDeviceConnection::Receive(Int_t nbytes) {
     sword += word[i];
   }
   if(flag) {
-    std::cout << "StandardDeviceConnection::Send() error while reading " << nbytes << " bytes:" << std::endl;
-    std::cout << "Readable word: " << sword.Data() << std::endl;
-    std::cout << "Full string: ";
+    //std::cout << "StandardDeviceConnection::Send() error while reading " << nbytes << " bytes:" << std::endl;
+    //std::cout << "Readable word: " << sword.Data() << std::endl;
+    //std::cout << "Full string: ";
     int max = nbytes;
     for(int i=0; i!=max; ++i) {
       if(word[i]==13) {

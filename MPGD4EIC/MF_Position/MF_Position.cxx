@@ -119,7 +119,7 @@ void MF_Position::CreateMotorInspection(TGCompositeFrame *mf) {
 //====================
 void MF_Position::ReadRawPositions() {
   TTimeStamp timestamp;
-  TString respX = fMotor->GetCurrentPosition(2);
+  TString respX = fMotor->GetCurrentPosition(1);
   if(fMotorX&&respX!="") {
     fMotorX->SetText( respX.Data() );
     TString ts = timestamp.AsString("s");
@@ -210,7 +210,7 @@ void MF_Position::CreatePlot(TGCompositeFrame *mf) {
   fCanvasMap->SetGridx(1);
   fCanvasMap->SetGridy(1);
   //fCanvasMap->SetEditable(kFALSE);
-  TH2F *axis = new TH2F("axis",";mm;mm",100,-5,+105,100,-5,+105);
+  TH2F *axis = new TH2F("axis",";mm;mm",100,-55,+55,100,-55,+55);
   axis->SetStats(0);
   axis->Draw();
   axis->GetXaxis()->SetNdivisions(820);
@@ -341,7 +341,7 @@ void MF_Position::MoveXY() {
     LoadLogY();
     std::cout << "YYY" << fYmust-fYnow << std::endl;
   }
-  fMotor->MoveRelative(1,fXmust-fXnow,2,fYmust-fYnow);
+  fMotor->MoveRelative(2,fXmust-fXnow,1,fYmust-fYnow);
 
   PrepareMove();
   fCallReadPositions->TurnOn();
@@ -468,8 +468,8 @@ void MF_Position::CreateTab2(TGCompositeFrame *tthis) {
 MF_Position::MF_Position(TApplication *app, UInt_t w, UInt_t h) : TGMainFrame(gClient->GetRoot(), w, h) {
   fMotor = new MC_Velmex();
   fMotor->Connect();
-  fMotor->SetStepsPerUnit(1,300);
-  fMotor->SetStepsPerUnit(2,30);
+  fMotor->SetStepsPerUnit(1,1262);//motorX 1262
+  fMotor->SetStepsPerUnit(2,126); //motorY 126
   fApp = app;
   sPath = "./Position_Data/";
   fCanvasMap = NULL;
@@ -483,8 +483,8 @@ MF_Position::MF_Position(TApplication *app, UInt_t w, UInt_t h) : TGMainFrame(gC
 
   for(int r=0; r!=10; ++r)
     for(int c=0; c!=19; ++c) {
-      fPreLoaded[r][c][0] = 5 + 5*c;
-      fPreLoaded[r][c][1] = 5 + 10*r;
+      fPreLoaded[r][c][0] = -45 + 5*c;
+      fPreLoaded[r][c][1] = -45 + 10*r;
     }
   
   fXmust = fYmust = 0;

@@ -50,10 +50,38 @@ TString StandardDeviceConnection::Receive(Int_t nbytes) {
     return "";
   }
   char word[100];
-  TString sword;
   ssize_t len = read(fFileDescriptor, word, nbytes);
-  if(len!=sword.Length()) {
+  Int_t lent = len;
+  if(lent!=nbytes) {
     std::cout << "StandardDeviceConnection::Send() was interrupted!" << std::endl;
+    return "";
+  }
+  TString mask = "+-0123456789";
+  TString sword = "";
+  Bool_t flag = false;
+  int retreived = 0;
+  for(int i=0; i!=nbytes; ++i) {
+    if(!mask.Contains(word[i])) {
+      flag = true;
+      break;
+    }
+    sword += word[i];
+  }
+  if(flag) {
+    std::cout << "StandardDeviceConnection::Send() error while reading " << nbytes << " bytes:" << std::endl;
+    std::cout << "Readable word: " << sword.Data() << std::endl;
+    std::cout << "Full string: ";
+    int max = nbytes;
+    for(int i=0; i!=max; ++i) {
+      if(word[i]==13) {
+	max++;
+	if(max>100) break;
+	continue;
+      }
+      std::cout << Form("%d ",word[i]);
+    }
+    std::cout << std::endl;
+    return "";
   }
   return sword;
 }

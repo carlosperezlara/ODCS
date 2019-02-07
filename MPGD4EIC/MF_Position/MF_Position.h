@@ -21,8 +21,9 @@ class MF_Position : public TGMainFrame {
  private:
   TApplication *fApp;
   TString sPath;
-  Int_t fPreLoaded[10][10][2];
-  TGTextButton     *fCell[10][10];
+  Int_t fPreLoaded[10][19][2];
+
+  TGTextButton     *fCell[10][19];
   TGTextButton     *fMove;
   TGTextButton     *fReset;
   TGTextButton     *fCancel;
@@ -36,12 +37,18 @@ class MF_Position : public TGMainFrame {
   TGNumberEntry *fGTXobj;
   TGNumberEntry *fGTYobj;
   TGIcon *fIcon;
+  TGLabel *fMotorX;
+  TGLabel *fMotorY;
+  TGLabel *fMotorXLU;
+  TGLabel *fMotorYLU;
+
   int fXnow;
   int fYnow;
   int fXmust;
   int fYmust;
   int fXobj;
   int fYobj;
+
   TCanvas *fCanvasMap;
   TGraph *fPointer;
   TGraph *fPointerObj;
@@ -55,11 +62,16 @@ class MF_Position : public TGMainFrame {
   MC_Velmex *fMotor;
   LE_Mitutoyo *fEncoder;
 
+  void CreateTab1(TGCompositeFrame*);
+  void CreateTab2(TGCompositeFrame*);
+
   void CreateCellArray(TGCompositeFrame*);
   void CreateControlTextX(TGCompositeFrame*);
   void CreateControlTextY(TGCompositeFrame*);
   void CreateControlButtons(TGCompositeFrame*,TGCompositeFrame*);
   void CreateEyes(TGCompositeFrame*);
+  void CreatePlot(TGCompositeFrame*);
+  void CreateMotorInspection(TGCompositeFrame*);
 
  public:
   MF_Position(TApplication *app, UInt_t w, UInt_t h);
@@ -70,6 +82,7 @@ class MF_Position : public TGMainFrame {
   void SetXY();
   void UpdateXYState();
   void UpdatePointer();
+  void ReadRawPositions();
   void MoveXY();
   void ResetXY();
   void CancelXY();

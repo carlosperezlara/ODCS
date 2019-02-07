@@ -81,3 +81,23 @@ void MC_Velmex::MoveRelative(Int_t midx, Int_t units, Int_t midx2, Int_t units2)
   ExecuteMoveRelative(midx, units*fStepsPerUnit[midx],
 		      midx2,units2*fStepsPerUnit[midx2]);
 }
+//====================
+TString MC_Velmex::GetCurrentPosition(Int_t midx) {
+  if(!fIsConnected) return "";
+  switch(midx) {
+  case(1):
+    fDevice->Send("X");
+    break;
+  case(2):
+    fDevice->Send("Y");
+    break;
+  case(3):
+    fDevice->Send("Z");
+    break;
+  case(4):
+    fDevice->Send("T");
+    break;
+  }
+  TString ret = fDevice->Receive(8);
+  return ret;
+}

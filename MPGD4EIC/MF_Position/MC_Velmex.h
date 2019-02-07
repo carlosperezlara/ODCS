@@ -23,6 +23,7 @@ class MC_Velmex {
   void MoveRelative(Int_t midx, Int_t units,Int_t midx2, Int_t units2);
   void SetStepsPerUnit(Int_t midx, Int_t val) { fStepsPerUnit[midx] = val; }
   Bool_t IsReady() {return kTRUE;}
+  TString GetCurrentPosition(Int_t midx);
   
   ClassDef(MC_Velmex, 0)
 };

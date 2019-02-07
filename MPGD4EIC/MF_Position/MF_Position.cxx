@@ -22,6 +22,7 @@
 
 #include "MF_Position.h"
 #include "MC_Velmex.h"
+#include "LE_Mitutoyo.h"
 
 ClassImp(MF_Position);
 
@@ -46,6 +47,13 @@ void MF_Position::CreateCellArray(TGCompositeFrame *mf) {
 void MF_Position::SetObj() {
   fXobj = fGTXobj->GetNumberEntry()->GetNumber( );
   fYobj = fGTYobj->GetNumberEntry()->GetNumber( );
+  PrepareMove();
+}
+//====================
+void MF_Position::SetXY() {
+  //fXobj = fGTXobj->GetNumberEntry()->GetNumber( );
+  //fYobj = fGTYobj->GetNumberEntry()->GetNumber( );
+  std::cout << "CLICKED!!!" << std::endl;
   PrepareMove();
 }
 //====================
@@ -131,7 +139,6 @@ void MF_Position::CreateControlButtons(TGCompositeFrame *mf,TGCompositeFrame *mf
   mf->AddFrame(fReset, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
   mf2->AddFrame(fCancel, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
   mf2->AddFrame(fClose, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
-  PrepareMove();
 }
 //====================
 void MF_Position::CreateEyes(TGCompositeFrame *mf) {
@@ -145,8 +152,8 @@ void MF_Position::CreateEyes(TGCompositeFrame *mf) {
   fCanvasMap = new TCanvas("CanvasMap", 10, 10, cId);
   fCanvasMap->SetTopMargin(0.03);
   fCanvasMap->SetBottomMargin(0.08);
-  fCanvasMap->SetLeftMargin(0.1);
-  fCanvasMap->SetRightMargin(0.01);
+  fCanvasMap->SetLeftMargin(0.11);
+  fCanvasMap->SetRightMargin(0.02);
   embeddedCanvas->AdoptCanvas(fCanvasMap);
   mf->AddFrame(embeddedCanvas, new TGLayoutHints(kLHintsLeft | kLHintsTop,5,5,2,2));
   fCanvasMap->SetGridx(1);
@@ -167,25 +174,36 @@ void MF_Position::CreateEyes(TGCompositeFrame *mf) {
   Double_t x[1] = {0};
   Double_t y[1] = {0};
   fPointer = new TGraph(1,x,y);
-  fPointer->SetMarkerStyle(20);//4);
-  //fPointer->SetMarkerSize(2);
+  fPointer->SetMarkerStyle(20);
   fPointer->SetMarkerColor(kBlue-3);
-  UpdatePointer();
+  fPointerObj = new TGraph(1,x,y);
+  fPointerObj->SetMarkerStyle(24);
+  fPointerObj->SetMarkerColor(kRed-3);
+  fPointerObj->SetMarkerSize(1);
+  fPointerMust = new TGraph(1,x,y);
+  fPointerMust->SetMarkerStyle(24);
+  fPointerMust->SetMarkerColor(kGreen-3);
+  fPointerMust->SetMarkerSize(1);
   fPointer->Draw("psame");
+  fPointerObj->Draw("psame");
+  fPointerMust->Draw("psame");
+  fCanvasMap->SetEditable(kFALSE);
+  UpdateXYState();
 }
 //====================
 void MF_Position::UpdatePointer() {
-  if(fPointer) {
-    fPointer->SetPoint(0,fXnow,fYnow);
-    fCanvasMap->Update();
-  }
+  if(fPointer) fPointer->SetPoint(0,fXnow,fYnow);
+  if(fPointerObj) fPointerObj->SetPoint(0,fXobj,fYobj);
+  if(fPointerMust) fPointerMust->SetPoint(0,fXmust,fYmust);
+  if(fCanvasMap) fCanvasMap->Update();
 }
 //====================
 void MF_Position::UpdateXYState() {
-  fGTXobj->GetNumberEntry()->SetNumber( fXobj );
-  fGTYobj->GetNumberEntry()->SetNumber( fYobj );
-  fGLXnow->SetText( Form("%d",fXnow) );
-  fGLYnow->SetText( Form("%d",fYnow) );
+  if(fGTXobj) fGTXobj->GetNumberEntry()->SetNumber( fXobj );
+  if(fGTYobj) fGTYobj->GetNumberEntry()->SetNumber( fYobj );
+  if(fGLXnow) fGLXnow->SetText( Form("%d",fXnow) );
+  if(fGLYnow) fGLYnow->SetText( Form("%d",fYnow) );
+  UpdatePointer();
 }
 //====================
 void MF_Position::PrepareMove() {
@@ -216,10 +234,15 @@ void MF_Position::PrepareMove() {
     dosomething = true;
   }
   if(dosomething) {
+    fMove->SetBackgroundColor(fPixelGreen);
     fMove->SetEnabled(kTRUE);
     fReset->SetEnabled(kTRUE);
-    fMove->SetBackgroundColor(fPixelGreen);
+  } else {
+    fMove->SetBackgroundColor(fPixelDefaultBgr);
+    fMove->SetEnabled(kTRUE);
+    fMove->SetEnabled(kFALSE);
   }
+  UpdateXYState();
 }
 //====================
 void MF_Position::ResetXY() {
@@ -325,7 +348,10 @@ MF_Position::MF_Position(TApplication *app, UInt_t w, UInt_t h) : TGMainFrame(gC
   fMotor->SetStepsPerUnit(2,30);
   fApp = app;
   sPath = "./Position_Data/";
+  fCanvasMap = NULL;
   fPointer = NULL;
+  fPointerObj = NULL;
+
   gClient->GetColorByName("blue", fPixelBlue);
   gClient->GetColorByName("red", fPixelRed);
   gClient->GetColorByName("black", fPixelBlack);
@@ -385,6 +411,7 @@ MF_Position::MF_Position(TApplication *app, UInt_t w, UInt_t h) : TGMainFrame(gC
   CreateControlTextY(fMainFrames_R1C2);
   CreateCellArray(fMainFrames_R1C3);
   CreateControlButtons(fMainFrames_R2,fMainFrames_R3);
+  fPixelDefaultBgr = fMove->GetBackground();
 
   CreateEyes(fMainFrames_R5);
 
@@ -395,7 +422,9 @@ MF_Position::MF_Position(TApplication *app, UInt_t w, UInt_t h) : TGMainFrame(gC
 
   fCallReadPositions = new TTimer();
   fCallReadPositions->Connect("Timeout()", "MF_Position", this, "ReadPositions()");
-  fCallReadPositions->Start(2000, kFALSE);
+  fCallReadPositions->Start(1000, kFALSE);
+
+  PrepareMove();
 }
 //====================
 MF_Position::~MF_Position() {

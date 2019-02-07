@@ -15,6 +15,7 @@
 #include <TTimer.h>
 
 #include "MC_Velmex.h"
+#include "LE_Mitutoyo.h"
 
 class MF_Position : public TGMainFrame {
  private:
@@ -43,6 +44,8 @@ class MF_Position : public TGMainFrame {
   int fYobj;
   TCanvas *fCanvasMap;
   TGraph *fPointer;
+  TGraph *fPointerObj;
+  TGraph *fPointerMust;
   TTimer *fCallReadPositions;
   Pixel_t fPixelRed;
   Pixel_t fPixelBlue;
@@ -50,6 +53,7 @@ class MF_Position : public TGMainFrame {
   Pixel_t fPixelGreen;
   Pixel_t fPixelDefaultBgr;
   MC_Velmex *fMotor;
+  LE_Mitutoyo *fEncoder;
 
   void CreateCellArray(TGCompositeFrame*);
   void CreateControlTextX(TGCompositeFrame*);
@@ -63,6 +67,7 @@ class MF_Position : public TGMainFrame {
   void ChangeCoordsFromCell(const char* rc);
   void PrepareMove();
   void SetObj();
+  void SetXY();
   void UpdateXYState();
   void UpdatePointer();
   void MoveXY();

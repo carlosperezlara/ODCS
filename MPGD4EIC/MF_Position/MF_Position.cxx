@@ -341,7 +341,7 @@ void MF_Position::MoveXY() {
     LoadLogY();
     std::cout << "YYY" << fYmust-fYnow << std::endl;
   }
-  fMotor->MoveRelative(2,fXmust-fXnow,1,fYmust-fYnow);
+  fMotor->MoveRelative(2,-1*(fXmust-fXnow),1,fYmust-fYnow); // motorx is reversed
 
   PrepareMove();
   fCallReadPositions->TurnOn();

@@ -27,14 +27,25 @@
 
 ClassImp(MF_Position);
 
-void MF_Position::CreateCellArray(TGCompositeFrame *mf) {
-  TGCompositeFrame *fFCell[10];
+void MF_Position::CreateControl(TGCompositeFrame *mf) {
+  TGTab *tabcontainer = new TGTab(mf,96,26);
+  TGCompositeFrame *tab1 = tabcontainer->AddTab("Manual");
+  CreateManualControl(tab1);
+  TGCompositeFrame *tab2 = tabcontainer->AddTab("Automatic");
+  CreateScriptControl(tab2);
+  tabcontainer->SetTab(0);
+  mf->AddFrame(tabcontainer, new TGLayoutHints(kLHintsTop | kLHintsExpandX,2,2,2,2));
+}
+//====================
+void MF_Position::CreatePreLoadedTable(TGCompositeFrame *mf) {
+  TGCompositeFrame *fFCell[11];
   TGLabel *lab = new TGLabel(mf,"Pre-Loaded Values");
   mf->AddFrame(lab, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
   char cellstr[19] = {'A','L','B','M','C','N','D','O','E','P',
 		      'F','Q','G','R','H','S','I','T','J'};
   for(int r=0; r!=10; ++r) {
     fFCell[r] = new TGCompositeFrame(mf, 170, 20, kHorizontalFrame);
+    mf->AddFrame(fFCell[r], new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
     for(int c=0; c!=19; ++c) {
       TString mycell = Form("%c%d",cellstr[c],9-r);
       fCell[r][c] = new TGTextButton(fFCell[r], c%2==0?mycell.Data():"" );
@@ -42,8 +53,55 @@ void MF_Position::CreateCellArray(TGCompositeFrame *mf) {
       fCell[r][c]->SetToolTipText( Form("set to ( x = %d, y = %d)",fPreLoaded[9-r][c][0],fPreLoaded[9-r][c][1]) );
       fFCell[r]->AddFrame(fCell[r][c], new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 1, 1, 1, 1));
     }
-    mf->AddFrame(fFCell[r], new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
   }
+  fFCell[10] = new TGCompositeFrame(mf, 170, 20, kHorizontalFrame);
+  mf->AddFrame(fFCell[10], new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
+  TGTextButton *fOutOfWay = new TGTextButton(fFCell[10], "out of the beam" );
+  fOutOfWay->Connect("Clicked()", "MF_Position", this, "SetOutOfWay()");
+  fOutOfWay->SetToolTipText( "set to ( x = 0, y = -80)" );
+  fFCell[10]->AddFrame(fOutOfWay, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 1, 1, 1, 1));
+}
+//====================
+void MF_Position::CreateManualControl(TGCompositeFrame *mf) {
+  CreatePreLoadedTable(mf);
+  TGCompositeFrame *r1 = new TGCompositeFrame(mf, 170, 20, kHorizontalFrame);
+  TGCompositeFrame *r2 = new TGCompositeFrame(mf, 170, 20, kHorizontalFrame);
+  mf->AddFrame(r1, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
+  mf->AddFrame(r2, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
+
+  TGLabel *labs;
+  labs = new TGLabel(r1,"X [mm] :");
+  r1->AddFrame(labs, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
+  fGTXobj = new TGNumberEntry(r1,0,9,9999,
+			      TGNumberFormat::kNESInteger,
+			      TGNumberFormat::kNEANonNegative,
+			      TGNumberFormat::kNELLimitMinMax,0,999);
+  fGTXobj->Connect("ValueSet(Long_t)", "MF_Position", this, "SetObj()");
+  (fGTXobj->GetNumberEntry())->Connect("ReturnPressed()", "MF_Position", this,"SetObj()");
+  r1->AddFrame(fGTXobj, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
+  labs = new TGLabel(r1,"Y [mm] :");
+  r1->AddFrame(labs, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
+  fGTYobj = new TGNumberEntry(r1,0,9,999,
+			      TGNumberFormat::kNESInteger,
+			      TGNumberFormat::kNEANonNegative,
+			      TGNumberFormat::kNELLimitMinMax,0,999);
+  fGTYobj->Connect("ValueSet(Long_t)", "MF_Position", this, "SetObj()");
+  (fGTYobj->GetNumberEntry())->Connect("ReturnPressed()", "MF_Position", this,"SetObj()");
+  r1->AddFrame(fGTYobj, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
+
+  
+  fMove = new TGTextButton(r2, "&Move ");
+  fReset = new TGTextButton(r2, "&Reset ");
+  fCancel = new TGTextButton(r2, "&Cancel ");
+  fMove->Connect("Clicked()", "MF_Position", this, "MoveXY()");
+  fMove->SetToolTipText( "Execute move to new coordinates" );
+  fReset->Connect("Clicked()", "MF_Position", this, "ResetXY()");
+  fReset->SetToolTipText( "Reset to previous position" );
+  fCancel->Connect("Clicked()", "MF_Position", this, "CancelXY()");
+  fCancel->SetToolTipText( "Abort movement and stays wherever it stops" );
+  r2->AddFrame(fMove, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
+  r2->AddFrame(fReset, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
+  r2->AddFrame(fCancel, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
 }
 //====================
 void MF_Position::ChangeCoordsFromCell(const char* rc) {
@@ -65,6 +123,12 @@ void MF_Position::ChangeCoordsFromCell(const char* rc) {
   fYobj = fPreLoaded[row][col][1];
   PrepareMove();
   fCell[9-row][col]->SetState(kButtonUp);
+}
+//====================
+void MF_Position::SetOutOfWay() {
+  fXobj = 0;
+  fYobj = -80;
+  PrepareMove();
 }
 //====================
 void MF_Position::SetObj() {
@@ -137,13 +201,8 @@ void MF_Position::CreateControlTextX(TGCompositeFrame *mf) {
   tExpX->AddFrame(fGLXnow, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
   fGLXsta = new TGLabel(tExpX," reached ");
   tExpX->AddFrame(fGLXsta, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
-  fGTXobj = new TGNumberEntry(tExpX,0,9,9999,
-			      TGNumberFormat::kNESInteger,
-			      TGNumberFormat::kNEANonNegative,
-			      TGNumberFormat::kNELLimitMinMax,0,999);
-  fGTXobj->Connect("ValueSet(Long_t)", "MF_Position", this, "SetObj()");
-  (fGTXobj->GetNumberEntry())->Connect("ReturnPressed()", "MF_Position", this,"SetObj()");
-  tExpX->AddFrame(fGTXobj, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
+
+
   mf->AddFrame(tExpX, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
   fGTXlog = new TGTextEdit(mf,102,236);
   mf->AddFrame(fGTXlog, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
@@ -160,24 +219,92 @@ void MF_Position::CreateControlTextY(TGCompositeFrame *mf) {
   tExpY->AddFrame(fGLYnow, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
   fGLYsta = new TGLabel(tExpY," reached ");
   tExpY->AddFrame(fGLYsta, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
-  fGTYobj = new TGNumberEntry(tExpY,0,9,999,
-			      TGNumberFormat::kNESInteger,
-			      TGNumberFormat::kNEANonNegative,
-			      TGNumberFormat::kNELLimitMinMax,0,999);
-  fGTYobj->Connect("ValueSet(Long_t)", "MF_Position", this, "SetObj()");
-  (fGTYobj->GetNumberEntry())->Connect("ReturnPressed()", "MF_Position", this,"SetObj()");
-  tExpY->AddFrame(fGTYobj, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
+
+
   mf->AddFrame(tExpY, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
   fGTYlog = new TGTextEdit(mf,102,236);
   mf->AddFrame(fGTYlog, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
   LoadLogY();
 }
 //====================
+void MF_Position::CreateScriptControl(TGCompositeFrame *mf) {
+  TGLabel *lab;
+  //--------
+  TGCompositeFrame *line0 = new TGCompositeFrame(mf, 170, 20, kHorizontalFrame);
+  mf->AddFrame(line0, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
+  TGTextEdit *fScriptInit = new TGTextEdit(line0,300,100);
+  line0->AddFrame(fScriptInit, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
+  //--------
+  TGCompositeFrame *line1 = new TGCompositeFrame(mf, 170, 20, kHorizontalFrame);
+  mf->AddFrame(line1, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
+  lab = new TGLabel(line1,"> Y mm ");
+  line1->AddFrame(lab, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
+  lab = new TGLabel(line1,"from ");
+  line1->AddFrame(lab, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
+  TGNumberEntry *fGNYini = new TGNumberEntry(line1,-45,9,999,
+					     TGNumberFormat::kNESInteger,
+					     TGNumberFormat::kNEAAnyNumber,
+					     TGNumberFormat::kNELLimitMinMax,-50,+50);
+  line1->AddFrame(fGNYini, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
+  lab = new TGLabel(line1," to ");
+  line1->AddFrame(lab, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
+  TGNumberEntry *fGNYto = new TGNumberEntry(line1,45,9,999,
+					    TGNumberFormat::kNESInteger,
+					    TGNumberFormat::kNEAAnyNumber,
+					    TGNumberFormat::kNELLimitMinMax,-50,+50);
+  line1->AddFrame(fGNYto, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
+  lab = new TGLabel(line1," delta ");
+  line1->AddFrame(lab, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
+  TGNumberEntry *fGNYinc = new TGNumberEntry(line1,10,9,999,
+					    TGNumberFormat::kNESInteger,
+					    TGNumberFormat::kNEAAnyNumber,
+					    TGNumberFormat::kNELLimitMinMax,-50,+50);
+  line1->AddFrame(fGNYinc, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
+  //--------
+  TGCompositeFrame *line2 = new TGCompositeFrame(mf, 170, 20, kHorizontalFrame);
+  mf->AddFrame(line2, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
+  lab = new TGLabel(line2,">> X mm ");
+  line2->AddFrame(lab, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
+  lab = new TGLabel(line2,"from ");
+  line2->AddFrame(lab, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
+  TGNumberEntry *fGNXini = new TGNumberEntry(line2,-45,9,999,
+					     TGNumberFormat::kNESInteger,
+					     TGNumberFormat::kNEAAnyNumber,
+					     TGNumberFormat::kNELLimitMinMax,-50,+50);
+  line2->AddFrame(fGNXini, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
+  lab = new TGLabel(line2," to ");
+  line2->AddFrame(lab, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
+  TGNumberEntry *fGNXto = new TGNumberEntry(line2,45,9,999,
+					    TGNumberFormat::kNESInteger,
+					    TGNumberFormat::kNEAAnyNumber,
+					    TGNumberFormat::kNELLimitMinMax,-50,+50);
+  line2->AddFrame(fGNXto, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
+  lab = new TGLabel(line2," delta ");
+  line2->AddFrame(lab, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
+  TGNumberEntry *fGNXinc = new TGNumberEntry(line2,10,9,999,
+					    TGNumberFormat::kNESInteger,
+					    TGNumberFormat::kNEAAnyNumber,
+					    TGNumberFormat::kNELLimitMinMax,-50,+50);
+  line2->AddFrame(fGNXinc, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
+  //--------
+  TGCompositeFrame *line3 = new TGCompositeFrame(mf, 170, 20, kHorizontalFrame);
+  mf->AddFrame(line3, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
+  TGTextEdit *fScriptBody = new TGTextEdit(line3,300,100);
+  line3->AddFrame(fScriptBody, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
+
+  fScriptBody->LoadFile("./Position_Data/ScriptBody.sh");
+  fScriptBody->GetText();
+  fScriptBody->Goto( fScriptBody->GetText()->RowCount() , 0 );
+  fScriptInit->LoadFile("./Position_Data/ScriptInit.sh");
+  fScriptInit->GetText();
+  fScriptInit->Goto( fScriptInit->GetText()->RowCount() , 0 );
+}
+//====================
 void MF_Position::CreateControlButtons(TGCompositeFrame *mf,TGCompositeFrame *mf2) {
   fMove = new TGTextButton(mf, "&Move ");
   fReset = new TGTextButton(mf, "&Reset ");
   fCancel = new TGTextButton(mf2, "&Cancel ");
-  fClose = new TGTextButton(mf2, "&Close ","gApplication->Terminate(0)");
+  //fClose = new TGTextButton(mf2, "&Close ","gApplication->Terminate(0)");
   fMove->Connect("Clicked()", "MF_Position", this, "MoveXY()");
   fMove->SetToolTipText( "Execute move to new coordinates" );
   fReset->Connect("Clicked()", "MF_Position", this, "ResetXY()");
@@ -187,8 +314,9 @@ void MF_Position::CreateControlButtons(TGCompositeFrame *mf,TGCompositeFrame *mf
   mf->AddFrame(fMove, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
   mf->AddFrame(fReset, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
   mf2->AddFrame(fCancel, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
-  mf2->AddFrame(fClose, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
+  //mf2->AddFrame(fClose, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
 }
+//====================
 void MF_Position::CreateEyes(TGCompositeFrame *mf) {
   fIcon = new TGIcon(mf,Form("%scurrentShot.JPG",sPath.Data()));
   mf->AddFrame(fIcon, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
@@ -198,7 +326,7 @@ void MF_Position::CreateEyes(TGCompositeFrame *mf) {
 void MF_Position::CreatePlot(TGCompositeFrame *mf) {
   char cellstr[19] = {'A','L','B','M','C','N','D','O','E','P',
 		      'F','Q','G','R','H','S','I','T','J'};
-  TRootEmbeddedCanvas *embeddedCanvas = new TRootEmbeddedCanvas(0,mf,300,300,kSunkenFrame);
+  TRootEmbeddedCanvas *embeddedCanvas = new TRootEmbeddedCanvas(0,mf,400,400,kSunkenFrame);
   Int_t cId = embeddedCanvas->GetCanvasWindowId();
   fCanvasMap = new TCanvas("CanvasMap", 10, 10, cId);
   fCanvasMap->SetTopMargin(0.03);
@@ -210,7 +338,7 @@ void MF_Position::CreatePlot(TGCompositeFrame *mf) {
   fCanvasMap->SetGridx(1);
   fCanvasMap->SetGridy(1);
   //fCanvasMap->SetEditable(kFALSE);
-  TH2F *axis = new TH2F("axis",";mm;mm",100,-55,+55,100,-55,+55);
+  TH2F *axis = new TH2F("axis",";X  [mm];Y  [mm]",100,-55,+55,100,-55,+55);
   axis->SetStats(0);
   axis->Draw();
   axis->GetXaxis()->SetNdivisions(820);
@@ -263,24 +391,24 @@ void MF_Position::PrepareMove() {
     fMove->SetEnabled(kFALSE);
     fCancel->SetEnabled(kTRUE);
     fReset->SetEnabled(kFALSE);
-    fClose->SetEnabled(kFALSE);
+    //fClose->SetEnabled(kFALSE);
     return;
   }
 
   fMove->SetEnabled(kFALSE);
   fCancel->SetEnabled(kFALSE);
   fReset->SetEnabled(kFALSE);
-  fClose->SetEnabled(kTRUE);
+  //fClose->SetEnabled(kTRUE);
 
   bool dosomething = false;
   if(fXobj!=fXmust) {
-    fGLXsta->SetText( " setting to " );
+    fGLXsta->SetText( " setting " );
     fGLXsta->SetForegroundColor(fPixelRed);
     fGTXobj->GetNumberEntry()->SetForegroundColor(fPixelRed);
     dosomething = true;
   }
   if(fYobj!=fYmust) {
-    fGLYsta->SetText( " setting to " );
+    fGLYsta->SetText( " setting " );
     fGLYsta->SetForegroundColor(fPixelRed);
     fGTYobj->GetNumberEntry()->SetForegroundColor(fPixelRed);
     dosomething = true;
@@ -317,13 +445,13 @@ void MF_Position::MoveXY() {
   fMove->SetEnabled(kFALSE);
   fReset->SetEnabled(kFALSE);
   fCancel->SetEnabled(kTRUE);
-  fClose->SetEnabled(kFALSE);
+  //fClose->SetEnabled(kFALSE);
 
   TTimeStamp timestamp;
   TString ts = timestamp.AsString("s");;
   if(fXmust!=fXobj) {
     fXmust = fXobj;
-    fGLXsta->SetText( " moving to " );
+    fGLXsta->SetText( " moving " );
     fGLXsta->SetForegroundColor(fPixelGreen);
     std::ofstream foutX( Form("%sPositionX.log",sPath.Data()),std::ofstream::out|std::ofstream::app);
     foutX << Form("%s => %d mm",ts.Data(),fXmust) << std::endl;
@@ -333,7 +461,7 @@ void MF_Position::MoveXY() {
   }
   if(fYmust!=fYobj) {
     fYmust = fYobj;
-    fGLYsta->SetText( " moving to " );
+    fGLYsta->SetText( " moving " );
     fGLYsta->SetForegroundColor(fPixelGreen);
     std::ofstream foutY( Form("%sPositionY.log",sPath.Data()),std::ofstream::out|std::ofstream::app);
     foutY << Form("%s => %d mm",ts.Data(),fYmust) << std::endl;
@@ -359,7 +487,7 @@ void MF_Position::ReadPositions() {
   foutL.close();
   UpdatePointer();
   UpdateXYState();
-  ReadRawPositions();
+  //ReadRawPositions();
 
   if((fXnow==fXmust)&&(fXmust==fXobj)) {
     fGLXsta->SetText( " reached " );
@@ -390,18 +518,14 @@ void MF_Position::CreateTab1(TGCompositeFrame *tthis) {
   fMainFrames_R1C1 = new TGCompositeFrame(fMainFrames_R1, 170, 20, kVerticalFrame);
   fMainFrames_R1C2 = new TGCompositeFrame(fMainFrames_R1, 170, 20, kVerticalFrame);
   fMainFrames_R1C3 = new TGCompositeFrame(fMainFrames_R1, 170, 20, kVerticalFrame);
-  fMainFrames_R2 = new TGCompositeFrame(tthis, 170, 20, kHorizontalFrame);
-  fMainFrames_R3 = new TGCompositeFrame(tthis, 170, 20, kHorizontalFrame);
   fMainFrames_R4 = new TGCompositeFrame(tthis, 170, 20, kHorizontalFrame);
   fMainFrames_R5 = new TGCompositeFrame(tthis, 170, 20, kHorizontalFrame);
   fMainFrames_R5C1 = new TGCompositeFrame(fMainFrames_R5, 170, 20, kVerticalFrame);
   fMainFrames_R5C2 = new TGCompositeFrame(fMainFrames_R5, 170, 20, kVerticalFrame);
 
   tthis->AddFrame(fMainFrames_R1, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
-  tthis->AddFrame(fMainFrames_R2, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
-  tthis->AddFrame(fMainFrames_R3, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
-  tthis->AddFrame(fMainFrames_R4, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
   tthis->AddFrame(fMainFrames_R5, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
+  tthis->AddFrame(fMainFrames_R4, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
   fMainFrames_R1->AddFrame(fMainFrames_R1C1, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
   fMainFrames_R1->AddFrame(fMainFrames_R1C2, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
   fMainFrames_R1->AddFrame(fMainFrames_R1C3, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
@@ -410,16 +534,15 @@ void MF_Position::CreateTab1(TGCompositeFrame *tthis) {
 
   fMainFrames_R1C1->ChangeOptions( kRaisedFrame);  
   fMainFrames_R1C2->ChangeOptions( kRaisedFrame);  
-  //fMainFrames_R5C1->ChangeOptions( kSunkenFrame);  
 
   CreateControlTextX(fMainFrames_R1C1);
   CreateControlTextY(fMainFrames_R1C2);
   CreateEyes(fMainFrames_R1C3);
 
-  CreateControlButtons(fMainFrames_R2,fMainFrames_R3);
-
   CreatePlot(fMainFrames_R5C1);
-  CreateCellArray(fMainFrames_R5C2);
+  CreateControl(fMainFrames_R5C2);
+
+
 }
 //====================
 void MF_Position::CreateTab2(TGCompositeFrame *tthis) {
@@ -475,7 +598,9 @@ MF_Position::MF_Position(TApplication *app, UInt_t w, UInt_t h) : TGMainFrame(gC
   fCanvasMap = NULL;
   fPointer = NULL;
   fPointerObj = NULL;
-
+  fGTXobj = NULL;
+  fGTYobj = NULL;
+  
   gClient->GetColorByName("blue", fPixelBlue);
   gClient->GetColorByName("red", fPixelRed);
   gClient->GetColorByName("black", fPixelBlack);
@@ -498,8 +623,10 @@ MF_Position::MF_Position(TApplication *app, UInt_t w, UInt_t h) : TGMainFrame(gC
   fXnow = fXobj = fXmust;
   fYnow = fYobj = fYmust;
   finL.close();
+  fLock = kFALSE;
   //ReadPositions();
 
+  
   TGTab *tabcontainer = new TGTab(this,96,26);
   TGCompositeFrame *tab1 = tabcontainer->AddTab("Master Controler");
   CreateTab1(tab1);
@@ -510,7 +637,7 @@ MF_Position::MF_Position(TApplication *app, UInt_t w, UInt_t h) : TGMainFrame(gC
 
   fPixelDefaultBgr = fMove->GetBackground();
 
-  SetWindowName("Position");
+  SetWindowName("Remote Connection to XY-Table");
   MapSubwindows();
   Layout();
   MapWindow();
@@ -527,4 +654,8 @@ MF_Position::~MF_Position() {
   fCallReadPositions->TurnOff();
   if(fMotor) delete fMotor;
   fApp->Terminate();
+}
+//====================
+void MF_Position::Log(TString msg) {
+  
 }

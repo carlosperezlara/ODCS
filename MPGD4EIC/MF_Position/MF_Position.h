@@ -42,6 +42,7 @@ class MF_Position : public TGMainFrame {
   TGLabel *fMotorXLU;
   TGLabel *fMotorYLU;
 
+  Bool_t fLock;
   int fXnow;
   int fYnow;
   int fXmust;
@@ -64,19 +65,24 @@ class MF_Position : public TGMainFrame {
 
   void CreateTab1(TGCompositeFrame*);
   void CreateTab2(TGCompositeFrame*);
-
-  void CreateCellArray(TGCompositeFrame*);
+  void CreateControl(TGCompositeFrame*);
+  void CreateManualControl(TGCompositeFrame*);
+  void CreateScriptControl(TGCompositeFrame*);
+  void CreatePreLoadedTable(TGCompositeFrame*);
   void CreateControlTextX(TGCompositeFrame*);
   void CreateControlTextY(TGCompositeFrame*);
   void CreateControlButtons(TGCompositeFrame*,TGCompositeFrame*);
   void CreateEyes(TGCompositeFrame*);
   void CreatePlot(TGCompositeFrame*);
   void CreateMotorInspection(TGCompositeFrame*);
-
+  void Look(Bool_t val=true) {Log( val?"Locked":"Unlocked"); fLock=val;}
+  void Log(TString val);
+  
  public:
   MF_Position(TApplication *app, UInt_t w, UInt_t h);
   virtual ~MF_Position();
   void ChangeCoordsFromCell(const char* rc);
+  void SetOutOfWay();
   void PrepareMove();
   void SetObj();
   void SetXY();

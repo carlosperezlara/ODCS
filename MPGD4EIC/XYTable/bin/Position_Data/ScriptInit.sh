@@ -1,6 +1,7 @@
 #!bash
-# here is what we execute once
-# to set ready the DAQ
-
-./initialize_DAQ_and_OM.sh
+__DAQREADY__=`rcdaq_client daq_list_readlist -s`
+if [ -z "$__DAQREADY__" ]
+then
+    source setup_daq.sh
+fi
 

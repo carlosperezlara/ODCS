@@ -232,7 +232,7 @@ void MF_Position::CreateScriptControl(TGCompositeFrame *mf) {
   //--------
   TGCompositeFrame *line0 = new TGCompositeFrame(mf, 170, 20, kHorizontalFrame);
   mf->AddFrame(line0, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
-  TGTextEdit *fScriptInit = new TGTextEdit(line0,300,100);
+  TGTextEdit *fScriptInit = new TGTextEdit(line0,300,150);
   line0->AddFrame(fScriptInit, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
   //--------
   TGCompositeFrame *line1 = new TGCompositeFrame(mf, 170, 20, kHorizontalFrame);
@@ -289,7 +289,7 @@ void MF_Position::CreateScriptControl(TGCompositeFrame *mf) {
   //--------
   TGCompositeFrame *line3 = new TGCompositeFrame(mf, 170, 20, kHorizontalFrame);
   mf->AddFrame(line3, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
-  TGTextEdit *fScriptBody = new TGTextEdit(line3,300,100);
+  TGTextEdit *fScriptBody = new TGTextEdit(line3,300,150);
   line3->AddFrame(fScriptBody, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
 
   fScriptBody->LoadFile("./Position_Data/ScriptBody.sh");

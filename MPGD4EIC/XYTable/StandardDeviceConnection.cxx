@@ -31,12 +31,19 @@ void StandardDeviceConnection::Init() {
   }
 }
 //======
-void StandardDeviceConnection::SetBPS(Int_t bps) {
+void StandardDeviceConnection::Set7E1at4800() {
   struct termios tty;
   if( tcgetattr(fFileDescriptor,&tty)<0 ) {
     std::cout << "SetBPS() error tcgetattr" << std::endl;
     return;
   }
+  fcntl(fFileDescriptor,F_SETFL,FNDELAY);
+  tty.c_cflag |= PARENB;
+  tty.c_cflag &= ~PARODD;
+  tty.c_cflag &= ~CSTOPB;
+  tty.c_cflag &= ~CSIZE;
+  tty.c_cflag &= ~CSIZE;
+  tty.c_cflag |= CS7;
   if( cfsetospeed(&tty, B4800 )<0 ) {
     std::cout << "SetBPS() error cfsetospeed" << std::endl;
     return;
@@ -45,15 +52,11 @@ void StandardDeviceConnection::SetBPS(Int_t bps) {
     std::cout << "SetBPS() error cfsetispeed" << std::endl;
     return;
   }
-  tty.c_iflag = 0;
-  tty.c_oflag = 0;
-  tty.c_lflag = 0;
-  tty.c_cflag = CS7 | PARENB | ~CSTOPB | ~PARODD;
   if( tcsetattr(fFileDescriptor,TCSANOW,&tty)<0 ) {
     std::cout << "SetBPS() error tcsetattr" << std::endl;
     return;
   }
-
+  return;
 }
 //======
 void StandardDeviceConnection::Send(TString word) {
@@ -78,13 +81,20 @@ TString StandardDeviceConnection::Receive(Int_t nbytes) {
   char word[100];
   ssize_t len = read(fFileDescriptor, word, nbytes);
   Int_t lent = len;
+
+  if(lent<0) {
+    //std::cout << "StandardDeviceConnection::Receive(#) read exit with error " << errno << std::endl;
+    
+    return "";
+  }
+  
   if(lent!=nbytes) {
     std::cout << "StandardDeviceConnection::Receive(#) was interrupted!" << std::endl;
     std::cout << nbytes << " requested" << std::endl;
     std::cout << lent << " ssize_t" << std::endl;
-    for(int i=0; i!=lent; ++i) {
-      std::cout << Form("%d|",word[i]) << std::endl;
-    }
+    //for(int i=0; i!=lent; ++i) {
+    //  std::cout << Form("%d|",word[i]) << std::endl;
+    //}
     return "";
   }
 
@@ -142,3 +152,7 @@ int main() {
   return 0;
 }
 */
+void StandardDeviceConnection::Flush() {
+  //sleep(1);
+  tcflush(fFileDescriptor,TCIOFLUSH);
+}

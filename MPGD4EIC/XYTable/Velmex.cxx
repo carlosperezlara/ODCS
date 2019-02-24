@@ -1,13 +1,13 @@
-#include "MC_Velmex.h"
+#include "Velmex.h"
 #include "StandardDeviceConnection.h"
 
 #include <fstream>
 #include <iostream>
 
-ClassImp(MC_Velmex);
+ClassImp(Velmex);
 
 //====================
-void MC_Velmex::Execute(TString cmd) {
+void Velmex::Execute(TString cmd) {
   if(!fIsConnected) return;
   // C : Clear all commands from currently selected program
   // R : Run currently selected program
@@ -16,7 +16,7 @@ void MC_Velmex::Execute(TString cmd) {
   std::cout << "Execute: " << fullCommand.Data() << std::endl;
 }
 //====================
-void MC_Velmex::Connect() {
+void Velmex::Connect() {
   // E : Enable On-Line mode with echo "on"
   // F : Enable On-Line mode with echo "off”
   if(fIsConnected) return;
@@ -24,20 +24,20 @@ void MC_Velmex::Connect() {
   fIsConnected = kTRUE;
 }
 //====================
-void MC_Velmex::Disconnect() {
+void Velmex::Disconnect() {
   if(!fIsConnected) return;
   // Q : Quit On-Line mode (return to Local mode)
   fDevice->Send("Q");
   fIsConnected = kFALSE;
 }
 //====================
-void MC_Velmex::Abort() {
+void Velmex::Abort() {
   if(!fIsConnected) return;
   // D: Decelerate to a stop (interrupts current index/program in progress
   fDevice->Send("D");
 }
 //====================
-void MC_Velmex::ExecuteMoveRelative(Int_t midx,Int_t nsteps) {
+void Velmex::ExecuteMoveRelative(Int_t midx,Double_t nsteps) {
   // IAmMx: Set Absolute Index distance, m=motor# (1-4), x=+-1 to +-16777215 steps
   // IAmM0: Index motor to Absolute zero position, m=motor# (1-4)
   // IAmM-0: Zero motor position for motor# m (1-4)
@@ -45,11 +45,11 @@ void MC_Velmex::ExecuteMoveRelative(Int_t midx,Int_t nsteps) {
   //cmdstr = Form("IA%dM-0,",fMotorIndex);
   //cmdstr += Form("IA%dM%d",fMotorIndex,nsteps);
   if(nsteps!=0)
-    cmdstr += Form("I%dM%d",midx,nsteps);
+    cmdstr += Form("I%dM%.3f",midx,nsteps);
   Execute(cmdstr);
 }
 //====================
-void MC_Velmex::ExecuteMoveRelative(Int_t midx,Int_t nsteps,Int_t midx2,Int_t nsteps2) {
+void Velmex::ExecuteMoveRelative(Int_t midx,Double_t nsteps,Int_t midx2,Double_t nsteps2) {
   // IAmMx: Set Absolute Index distance, m=motor# (1-4), x=+-1 to +-16777215 steps
   // IAmM0: Index motor to Absolute zero position, m=motor# (1-4)
   // IAmM-0: Zero motor position for motor# m (1-4)
@@ -57,32 +57,40 @@ void MC_Velmex::ExecuteMoveRelative(Int_t midx,Int_t nsteps,Int_t midx2,Int_t ns
   //cmdstr = Form("IA%dM-0,",fMotorIndex);
   //cmdstr += Form("IA%dM%d",fMotorIndex,nsteps);
   if(nsteps!=0)
-    cmdstr += Form("I%dM%d,",midx,nsteps);
+    cmdstr += Form("I%dM%.3f,",midx,nsteps);
   if(nsteps2!=0)
-    cmdstr += Form("I%dM%d",midx2,nsteps2);
+    cmdstr += Form("I%dM%.3f",midx2,nsteps2);
   Execute(cmdstr);
 }
 //====================
-MC_Velmex::MC_Velmex(TString port) {
+Velmex::Velmex(TString port) {
   fDevice = new StandardDeviceConnection(port,2/*2=O_RDWR, 1=O_WRONLY*/);
   fIsConnected = kFALSE;
 }
 //====================
-MC_Velmex::~MC_Velmex() {
+Velmex::~Velmex() {
   delete fDevice;
   fDevice = 0;
 }
 //====================
-void MC_Velmex::MoveRelative(Int_t midx, Int_t units) {
+void Velmex::MoveRelative(Int_t midx, Double_t units) {
   ExecuteMoveRelative(midx,units*fStepsPerUnit[midx]);
 }
 //====================
-void MC_Velmex::MoveRelative(Int_t midx, Int_t units, Int_t midx2, Int_t units2) {
+void Velmex::MoveRelative(Int_t midx, Double_t units, Int_t midx2, Double_t units2) {
   ExecuteMoveRelative(midx, units*fStepsPerUnit[midx],
 		      midx2,units2*fStepsPerUnit[midx2]);
 }
 //====================
-TString MC_Velmex::GetCurrentPosition(Int_t midx) {
+TString Velmex::GetStatus() {
+  if(!fIsConnected) return "";
+  //fDevice->Send("V");
+  //TString ret = fDevice->Receive(1);
+  //return ret;
+  return "";
+}
+//====================
+TString Velmex::GetCurrentPosition(Int_t midx) {
   if(!fIsConnected) return "";
   switch(midx) {
   case(1):

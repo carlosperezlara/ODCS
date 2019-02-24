@@ -23,8 +23,9 @@ class StandardDeviceConnection {
   void Init();
   void Send(TString);
   TString Receive(Int_t);
-  void SetBPS(Int_t);
-
+  void Set7E1at4800();
+  void Flush();
+  
   ClassDef(StandardDeviceConnection, 0)
 };
 #endif

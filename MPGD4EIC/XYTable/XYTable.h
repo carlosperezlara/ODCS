@@ -1,5 +1,5 @@
-#ifndef MF_POSITION
-#define MF_POSITION
+#ifndef XYTABLE_H
+#define XYTABLE_H
 
 #include <TApplication.h>
 #include <TGFrame.h>
@@ -14,10 +14,10 @@
 #include <TGraph.h>
 #include <TTimer.h>
 
-#include "MC_Velmex.h"
-#include "LE_Mitutoyo.h"
+#include "Velmex.h"
+#include "Mitutoyo.h"
 
-class MF_Position : public TGMainFrame {
+class XYTable : public TGMainFrame {
  private:
   TApplication *fApp;
   TString sPath;
@@ -49,6 +49,10 @@ class MF_Position : public TGMainFrame {
   int fYmust;
   int fXobj;
   int fYobj;
+  Double_t fDXnow;
+  Double_t fDYnow;
+  Double_t fDXmust;
+  Double_t fDYmust;
 
   TCanvas *fCanvasMap;
   TGraph *fPointer;
@@ -60,8 +64,8 @@ class MF_Position : public TGMainFrame {
   Pixel_t fPixelBlack;
   Pixel_t fPixelGreen;
   Pixel_t fPixelDefaultBgr;
-  MC_Velmex *fMotor;
-  LE_Mitutoyo *fEncoder;
+  Velmex *fMotor;
+  Mitutoyo *fEncoder;
 
   void CreateTab1(TGCompositeFrame*);
   void CreateTab2(TGCompositeFrame*);
@@ -79,8 +83,8 @@ class MF_Position : public TGMainFrame {
   void Log(TString val);
   
  public:
-  MF_Position(TApplication *app, UInt_t w, UInt_t h);
-  virtual ~MF_Position();
+  XYTable(TApplication *app, UInt_t w, UInt_t h);
+  virtual ~XYTable();
   void ChangeCoordsFromCell(const char* rc);
   void SetOutOfWay();
   void PrepareMove();
@@ -97,7 +101,7 @@ class MF_Position : public TGMainFrame {
   void LoadLogs();
   void ReadPositions();  
 
-  ClassDef(MF_Position, 0)
+  ClassDef(XYTable, 0)
 };
 
 #endif

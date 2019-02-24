@@ -13,23 +13,39 @@ int main() {
     test.Send("HOLA");
   }
 
-  if(0) { // mitutoyo
-    StandardDeviceConnection test("/dev/cu.usbserial",O_RDONLY);
-    test.SetBPS(4800);
+  if(0) { // velmex
+    StandardDeviceConnection test("/dev/ttyUSB0",O_RDONLY | O_NONBLOCK );
     TString str;
-    for(int i=0; i!=180; ++i) {
+    bool exit = false;
+    bool started = false;
+    while(!exit) {
       str = test.Receive(1);
+      if(str.Length()==0) {
+	if(started) exit = true;
+	continue;
+      }
+      started = true;
       std::cout << str.Data();
     }
     std::cout << std::endl;
   }
 
-  if(1) { // /dev/zero
-    StandardDeviceConnection test("/dev/urandom",O_RDONLY);
-    //test.SetBPS(4800);
+  if(1) { // mitutoyo
+    //StandardDeviceConnection test("/dev/ttyUSB1",O_RDONLY | O_NONBLOCK);
+    StandardDeviceConnection test("/dev/ttyUSB1",O_RDONLY | O_NOCTTY | O_NDELAY);
+    test.Set7E1at4800();
     TString str;
-    for(int i=0; i!=180; ++i) {
+    bool exit = false;
+    bool started = false;
+    TString all="0123456789";
+    while(!exit) {
       str = test.Receive(1);
+      if(str.Length()==0) {
+	//if(started) exit = true;
+	continue;
+      }
+      if(all.Contains(str[0]))
+	started = true;
       std::cout << str.Data();
     }
     std::cout << std::endl;

@@ -4,6 +4,7 @@
 #pragma link off all functions;
 #pragma link C++ nestedclasses;
 #pragma link C++ class StandardDeviceConnection+;
-#pragma link C++ class MC_Velmex+;
-#pragma link C++ class MF_Position+;
+#pragma link C++ class Velmex+;
+#pragma link C++ class Mitutoyo+;
+#pragma link C++ class XYTable+;
 #endif

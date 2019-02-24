@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <termios.h>
 
 #include "StandardDeviceConnection.h"
 
@@ -30,6 +31,31 @@ void StandardDeviceConnection::Init() {
   }
 }
 //======
+void StandardDeviceConnection::SetBPS(Int_t bps) {
+  struct termios tty;
+  if( tcgetattr(fFileDescriptor,&tty)<0 ) {
+    std::cout << "SetBPS() error tcgetattr" << std::endl;
+    return;
+  }
+  if( cfsetospeed(&tty, B4800 )<0 ) {
+    std::cout << "SetBPS() error cfsetospeed" << std::endl;
+    return;
+  }
+  if( cfsetispeed(&tty, B4800 )<0 ) {
+    std::cout << "SetBPS() error cfsetispeed" << std::endl;
+    return;
+  }
+  tty.c_iflag = 0;
+  tty.c_oflag = 0;
+  tty.c_lflag = 0;
+  tty.c_cflag = CS7 | PARENB | ~CSTOPB | ~PARODD;
+  if( tcsetattr(fFileDescriptor,TCSANOW,&tty)<0 ) {
+    std::cout << "SetBPS() error tcsetattr" << std::endl;
+    return;
+  }
+
+}
+//======
 void StandardDeviceConnection::Send(TString word) {
   if(fFileDescriptor<0) {
     std::cout << "StandardDeviceConnection::Send() no valid file descriptor, forgot to call Init()?" << std::endl;
@@ -53,9 +79,17 @@ TString StandardDeviceConnection::Receive(Int_t nbytes) {
   ssize_t len = read(fFileDescriptor, word, nbytes);
   Int_t lent = len;
   if(lent!=nbytes) {
-    std::cout << "StandardDeviceConnection::Send() was interrupted!" << std::endl;
+    std::cout << "StandardDeviceConnection::Receive(#) was interrupted!" << std::endl;
+    std::cout << nbytes << " requested" << std::endl;
+    std::cout << lent << " ssize_t" << std::endl;
+    for(int i=0; i!=lent; ++i) {
+      std::cout << Form("%d|",word[i]) << std::endl;
+    }
     return "";
   }
+
+  return word[0];
+
   TString mask = "+-0123456789";
   TString sword = "";
   Bool_t flag = false;

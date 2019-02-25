@@ -17,12 +17,12 @@ class StandardDeviceConnection {
  public:
   StandardDeviceConnection();
   StandardDeviceConnection(TString,Int_t);
-  virtual ~StandardDeviceConnection() {}
+  virtual ~StandardDeviceConnection();
   void SetDeviceAddress(TString val) {fDevice = val;}
   void SetDeviceAccessMode(Int_t val) {fMode = val;}
   void Init();
   void Send(TString);
-  TString Receive(Int_t);
+  TString Receive();
   void Set7E1at4800();
   void Flush();
   

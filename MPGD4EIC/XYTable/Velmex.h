@@ -3,13 +3,12 @@
 #include "TString.h"
 #include "StandardDeviceConnection.h"
 
-class Velmex {
+class Velmex : public StandardDeviceConnection {
  protected:
   void Execute(TString);
   void ExecuteMoveRelative(Int_t midx, Double_t nsteps);
   void ExecuteMoveRelative(Int_t midx, Double_t nsteps, Int_t midx2, Double_t nsteps2);
   
-  StandardDeviceConnection *fDevice;
   Bool_t   fIsConnected;
   Double_t fStepsPerUnit[4];
   Int_t    fStepsPerSecond[4];

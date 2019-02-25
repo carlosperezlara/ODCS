@@ -13,6 +13,7 @@
 #include <TCanvas.h>
 #include <TGraph.h>
 #include <TTimer.h>
+#include <TImage.h>
 
 #include "Velmex.h"
 #include "Mitutoyo.h"
@@ -55,11 +56,14 @@ class XYTable : public TGMainFrame {
   Double_t fDYmust;
 
   TCanvas *fCanvasMap;
+  TCanvas *fCanvasImg;
+  TImage *fImg;
   TGraph *fPointer;
   TGraph *fPointerObj;
   TGraph *fPointerMust;
   TTimer *fCallReadPositions;
   Pixel_t fPixelRed;
+  Pixel_t fPixelWhite;
   Pixel_t fPixelBlue;
   Pixel_t fPixelBlack;
   Pixel_t fPixelGreen;
@@ -73,8 +77,7 @@ class XYTable : public TGMainFrame {
   void CreateManualControl(TGCompositeFrame*);
   void CreateScriptControl(TGCompositeFrame*);
   void CreatePreLoadedTable(TGCompositeFrame*);
-  void CreateControlTextX(TGCompositeFrame*);
-  void CreateControlTextY(TGCompositeFrame*);
+  void CreateStatusTextXY(TGCompositeFrame*);
   void CreateControlButtons(TGCompositeFrame*,TGCompositeFrame*);
   void CreateEyes(TGCompositeFrame*);
   void CreatePlot(TGCompositeFrame*);

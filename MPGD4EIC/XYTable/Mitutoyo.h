@@ -3,9 +3,8 @@
 #include "TString.h"
 #include "StandardDeviceConnection.h"
 
-class Mitutoyo {
+class Mitutoyo : public StandardDeviceConnection {
  protected:
-  StandardDeviceConnection *fDevice;
 
  public:
   Mitutoyo(TString dev="/dev/cu.usbserial");

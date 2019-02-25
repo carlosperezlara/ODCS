@@ -12,7 +12,7 @@ void Velmex::Execute(TString cmd) {
   // C : Clear all commands from currently selected program
   // R : Run currently selected program
   TString fullCommand = "C,"+cmd+",R";
-  fDevice->Send(fullCommand);
+  Send(fullCommand);
   std::cout << "Execute: " << fullCommand.Data() << std::endl;
 }
 //====================
@@ -20,21 +20,21 @@ void Velmex::Connect() {
   // E : Enable On-Line mode with echo "on"
   // F : Enable On-Line mode with echo "off”
   if(fIsConnected) return;
-  fDevice->Send("F");
+  Send("F");
   fIsConnected = kTRUE;
 }
 //====================
 void Velmex::Disconnect() {
   if(!fIsConnected) return;
   // Q : Quit On-Line mode (return to Local mode)
-  fDevice->Send("Q");
+  Send("Q");
   fIsConnected = kFALSE;
 }
 //====================
 void Velmex::Abort() {
   if(!fIsConnected) return;
   // D: Decelerate to a stop (interrupts current index/program in progress
-  fDevice->Send("D");
+  Send("D");
 }
 //====================
 void Velmex::ExecuteMoveRelative(Int_t midx,Double_t nsteps) {
@@ -63,14 +63,13 @@ void Velmex::ExecuteMoveRelative(Int_t midx,Double_t nsteps,Int_t midx2,Double_t
   Execute(cmdstr);
 }
 //====================
-Velmex::Velmex(TString port) {
-  fDevice = new StandardDeviceConnection(port,2/*2=O_RDWR, 1=O_WRONLY*/);
-  fIsConnected = kFALSE;
+Velmex::Velmex(TString port) :
+  StandardDeviceConnection(port,O_RDWR),
+  fIsConnected(kFALSE)
+{
 }
 //====================
 Velmex::~Velmex() {
-  delete fDevice;
-  fDevice = 0;
 }
 //====================
 void Velmex::MoveRelative(Int_t midx, Double_t units) {
@@ -84,8 +83,8 @@ void Velmex::MoveRelative(Int_t midx, Double_t units, Int_t midx2, Double_t unit
 //====================
 TString Velmex::GetStatus() {
   if(!fIsConnected) return "";
-  //fDevice->Send("V");
-  //TString ret = fDevice->Receive(1);
+  //Send("V");
+  //TString ret = Receive(1);
   //return ret;
   return "";
 }
@@ -94,18 +93,18 @@ TString Velmex::GetCurrentPosition(Int_t midx) {
   if(!fIsConnected) return "";
   switch(midx) {
   case(1):
-    fDevice->Send("X");
+    Send("X");
     break;
   case(2):
-    fDevice->Send("Y");
+    Send("Y");
     break;
   case(3):
-    fDevice->Send("Z");
+    Send("Z");
     break;
   case(4):
-    fDevice->Send("T");
+    Send("T");
     break;
   }
-  TString ret = fDevice->Receive(8);
+  TString ret = Receive();
   return ret;
 }

@@ -19,7 +19,7 @@ int main() {
     bool exit = false;
     bool started = false;
     while(!exit) {
-      str = test.Receive(1);
+      str = test.Receive();
       if(str.Length()==0) {
 	if(started) exit = true;
 	continue;
@@ -39,7 +39,7 @@ int main() {
     bool started = false;
     TString all="0123456789";
     while(!exit) {
-      str = test.Receive(1);
+      str = test.Receive();
       if(str.Length()==0) {
 	//if(started) exit = true;
 	continue;

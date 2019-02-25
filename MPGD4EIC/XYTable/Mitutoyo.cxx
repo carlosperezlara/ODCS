@@ -9,25 +9,23 @@
 ClassImp(Mitutoyo);
 
 //====================
-Mitutoyo::Mitutoyo(TString port) {
-  fDevice = new StandardDeviceConnection(port,2/*2=O_RDWR, 1=O_WRONLY*/);
-  fDevice->Set7E1at4800();
+Mitutoyo::Mitutoyo(TString port) :
+  StandardDeviceConnection(port,O_RDONLY)
+{
+  Set7E1at4800();
 }
 //====================
 Mitutoyo::~Mitutoyo() {
-  delete fDevice;
-  fDevice = 0;
 }
 //====================
 void Mitutoyo::ReadXY(Int_t &x, Int_t &y) {
+  if(fFileDescriptor<0) return;
   // returns in microns
-  fDevice->Flush();
+  Flush();
   TString longstr = "";
   while(longstr.Length()<50) {
-    longstr += fDevice->Receive(1);
+    longstr += Receive();
   }
-  //std::cout << longstr << std::endl;
-
   int st;
 
   st=longstr.First('X')+2;
@@ -45,5 +43,4 @@ void Mitutoyo::ReadXY(Int_t &x, Int_t &y) {
   Double_t dy = sy.Atof();
   x = dx*1000;
   y = dy*1000;
-  //std::cout << " XXX " << x << " YYY " << y << std::endl;
 }

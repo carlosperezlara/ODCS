@@ -10,6 +10,7 @@
 #include <TGTab.h>
 #include <TRootEmbeddedCanvas.h>
 
+#include <TSystem.h>
 #include <TString.h>
 #include <TCanvas.h>
 #include <TGraph.h>
@@ -17,6 +18,7 @@
 #include <TH2F.h>
 #include <TTimeStamp.h>
 #include <TLatex.h>
+#include <TImage.h>
 
 #include <fstream>
 #include <iostream>
@@ -72,19 +74,19 @@ void XYTable::CreateManualControl(TGCompositeFrame *mf) {
   TGLabel *labs;
   labs = new TGLabel(r1,"X [mm] :");
   r1->AddFrame(labs, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
-  fGTXobj = new TGNumberEntry(r1,0,9,9999,
+  fGTXobj = new TGNumberEntry(r1,10,9,9999,
 			      TGNumberFormat::kNESInteger,
-			      TGNumberFormat::kNEANonNegative,
-			      TGNumberFormat::kNELLimitMinMax,0,999);
+			      TGNumberFormat::kNEAAnyNumber,
+			      TGNumberFormat::kNELLimitMinMax,-50,+50);
   fGTXobj->Connect("ValueSet(Long_t)", "XYTable", this, "SetObj()");
   (fGTXobj->GetNumberEntry())->Connect("ReturnPressed()", "XYTable", this,"SetObj()");
   r1->AddFrame(fGTXobj, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
   labs = new TGLabel(r1,"Y [mm] :");
   r1->AddFrame(labs, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
-  fGTYobj = new TGNumberEntry(r1,0,9,999,
+  fGTYobj = new TGNumberEntry(r1,10,9,999,
 			      TGNumberFormat::kNESInteger,
-			      TGNumberFormat::kNEANonNegative,
-			      TGNumberFormat::kNELLimitMinMax,0,999);
+			      TGNumberFormat::kNEAAnyNumber,
+			      TGNumberFormat::kNELLimitMinMax,-50,+50);
   fGTYobj->Connect("ValueSet(Long_t)", "XYTable", this, "SetObj()");
   (fGTYobj->GetNumberEntry())->Connect("ReturnPressed()", "XYTable", this,"SetObj()");
   r1->AddFrame(fGTYobj, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
@@ -117,10 +119,11 @@ void XYTable::ChangeCoordsFromCell(const char* rc) {
    if(tmpC==cellstr[i])
       col = i;
   }
-  std::cout << tmpC << "(" << col << ") " << row << std::endl;
+  //std::cout << tmpC << "(" << row << ", " << col << ")" << std::endl;
   fCell[9-row][col]->SetState(kButtonDown);
   fXobj = fPreLoaded[row][col][0];
   fYobj = fPreLoaded[row][col][1];
+  UpdateXYState();
   PrepareMove();
   fCell[9-row][col]->SetState(kButtonUp);
 }
@@ -137,16 +140,9 @@ void XYTable::SetObj() {
   PrepareMove();
 }
 //====================
-void XYTable::SetXY() {
-  //fXobj = fGTXobj->GetNumberEntry()->GetNumber( );
-  //fYobj = fGTYobj->GetNumberEntry()->GetNumber( );
-  std::cout << "CLICKED!!!" << std::endl;
-  PrepareMove();
-}
-//====================
 void XYTable::LoadLogX() {
   fGTXlog->LoadFile(Form("%sPositionX.log",sPath.Data()));
-  std::cout << "  " << Form("%sPositionX.log",sPath.Data()) << std::endl;
+  //std::cout << "  " << Form("%sPositionX.log",sPath.Data()) << std::endl;
   fGTXlog->SetReadOnly(kTRUE);
   fGTXlog->GetText();
   fGTXlog->Goto( fGTXlog->GetText()->RowCount() , 0 );
@@ -154,7 +150,7 @@ void XYTable::LoadLogX() {
 //====================
 void XYTable::LoadLogY() {
   fGTYlog->LoadFile(Form("%sPositionY.log",sPath.Data()));
-  std::cout << "  " << Form("%sPositionY.log",sPath.Data()) << std::endl;
+  //std::cout << "  " << Form("%sPositionY.log",sPath.Data()) << std::endl;
   fGTYlog->SetReadOnly(kTRUE);
   fGTYlog->GetText();
   fGTYlog->Goto( fGTYlog->GetText()->RowCount() , 0 );
@@ -191,38 +187,33 @@ void XYTable::ReadRawPositions() {
   }
 }
 //====================
-void XYTable::CreateControlTextX(TGCompositeFrame *mf) {
-  TGLabel *lab = new TGLabel(mf,"X  [mm]");
+void XYTable::CreateStatusTextXY(TGCompositeFrame *mf) {
+  TGLabel *lab;
+  lab = new TGLabel(mf,"X  [mm]");
   mf->AddFrame(lab, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
   TGCompositeFrame *tExpX = new TGCompositeFrame(mf, 170, 20, kHorizontalFrame);
   fGLXnow = new TGLabel(tExpX,"0");
   fGLXnow->SetBackgroundColor(fPixelBlue);
-  fGLXnow->SetForegroundColor(fPixelGreen);
+  fGLXnow->SetForegroundColor(fPixelWhite);
   tExpX->AddFrame(fGLXnow, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
   fGLXsta = new TGLabel(tExpX," reached ");
   tExpX->AddFrame(fGLXsta, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
-
-
   mf->AddFrame(tExpX, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
-  fGTXlog = new TGTextEdit(mf,102,236);
+  fGTXlog = new TGTextEdit(mf,102,100);
   mf->AddFrame(fGTXlog, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
   LoadLogX();
-}
-//====================
-void XYTable::CreateControlTextY(TGCompositeFrame *mf) {
-  TGLabel *lab = new TGLabel(mf,"Y  [mm]");
+  //==
+  lab = new TGLabel(mf,"Y  [mm]");
   mf->AddFrame(lab, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
   TGCompositeFrame *tExpY = new TGCompositeFrame(mf, 170, 20, kHorizontalFrame);
   fGLYnow = new TGLabel(tExpY,"0");
   fGLYnow->SetBackgroundColor(fPixelBlue);
-  fGLYnow->SetForegroundColor(fPixelGreen);
+  fGLYnow->SetForegroundColor(fPixelWhite);
   tExpY->AddFrame(fGLYnow, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
   fGLYsta = new TGLabel(tExpY," reached ");
   tExpY->AddFrame(fGLYsta, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
-
-
   mf->AddFrame(tExpY, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
-  fGTYlog = new TGTextEdit(mf,102,236);
+  fGTYlog = new TGTextEdit(mf,102,100);
   mf->AddFrame(fGTYlog, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
   LoadLogY();
 }
@@ -232,9 +223,10 @@ void XYTable::CreateScriptControl(TGCompositeFrame *mf) {
   //--------
   TGCompositeFrame *line0 = new TGCompositeFrame(mf, 170, 20, kHorizontalFrame);
   mf->AddFrame(line0, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
-  TGTextEdit *fScriptInit = new TGTextEdit(line0,300,150);
+  TGTextEdit *fScriptInit = new TGTextEdit(line0,300,110);
   line0->AddFrame(fScriptInit, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
   //--------
+  /*
   TGCompositeFrame *line1 = new TGCompositeFrame(mf, 170, 20, kHorizontalFrame);
   mf->AddFrame(line1, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
   lab = new TGLabel(line1,"> Y mm ");
@@ -286,16 +278,17 @@ void XYTable::CreateScriptControl(TGCompositeFrame *mf) {
 					    TGNumberFormat::kNEAAnyNumber,
 					    TGNumberFormat::kNELLimitMinMax,-50,+50);
   line2->AddFrame(fGNXinc, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
+  */
   //--------
   TGCompositeFrame *line3 = new TGCompositeFrame(mf, 170, 20, kHorizontalFrame);
   mf->AddFrame(line3, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
-  TGTextEdit *fScriptBody = new TGTextEdit(line3,300,150);
+  TGTextEdit *fScriptBody = new TGTextEdit(line3,300,250);
   line3->AddFrame(fScriptBody, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
 
-  fScriptBody->LoadFile("./Position_Data/ScriptBody.sh");
+  fScriptBody->LoadFile("./Position_Data/Script.sh");
   fScriptBody->GetText();
   fScriptBody->Goto( fScriptBody->GetText()->RowCount() , 0 );
-  fScriptInit->LoadFile("./Position_Data/ScriptInit.sh");
+  fScriptInit->LoadFile("./Position_Data/sequence_All.txt");
   fScriptInit->GetText();
   fScriptInit->Goto( fScriptInit->GetText()->RowCount() , 0 );
 }
@@ -304,7 +297,6 @@ void XYTable::CreateControlButtons(TGCompositeFrame *mf,TGCompositeFrame *mf2) {
   fMove = new TGTextButton(mf, "&Move ");
   fReset = new TGTextButton(mf, "&Reset ");
   fCancel = new TGTextButton(mf2, "&Cancel ");
-  //fClose = new TGTextButton(mf2, "&Close ","gApplication->Terminate(0)");
   fMove->Connect("Clicked()", "XYTable", this, "MoveXY()");
   fMove->SetToolTipText( "Execute move to new coordinates" );
   fReset->Connect("Clicked()", "XYTable", this, "ResetXY()");
@@ -314,19 +306,34 @@ void XYTable::CreateControlButtons(TGCompositeFrame *mf,TGCompositeFrame *mf2) {
   mf->AddFrame(fMove, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
   mf->AddFrame(fReset, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
   mf2->AddFrame(fCancel, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
-  //mf2->AddFrame(fClose, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
 }
 //====================
 void XYTable::CreateEyes(TGCompositeFrame *mf) {
+  /*
+  TRootEmbeddedCanvas *embeddedCanvas = new TRootEmbeddedCanvas("canvasimg",mf,400,400,kSunkenFrame);
+  Int_t cId = embeddedCanvas->GetCanvasWindowId();
+  fCanvasImg = new TCanvas("CanvasImg", 10, 10, cId);
+  fCanvasImg->SetTopMargin(0.03);
+  fCanvasImg->SetBottomMargin(0.08);
+  fCanvasImg->SetLeftMargin(0.11);
+  fCanvasImg->SetRightMargin(0.02);
+  embeddedCanvas->AdoptCanvas(fCanvasImg);
+  mf->AddFrame(embeddedCanvas, new TGLayoutHints(kLHintsLeft | kLHintsTop,5,5,2,2));
+  fImg = TImage::Open(Form("%scurrentShot.JPG",sPath.Data()));
+  fCanvasImg->SetFixedAspectRatio();
+  fImg->SetConstRatio(kFALSE);
+  fImg->Draw("N");
+  */
+  //fCanvasMap->SetEditable(kFALSE);
   fIcon = new TGIcon(mf,Form("%scurrentShot.JPG",sPath.Data()));
   mf->AddFrame(fIcon, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
-  fIcon->Resize(100,300);
+  fIcon->Resize(640*0.61,480*0.61);
 }
 //====================
 void XYTable::CreatePlot(TGCompositeFrame *mf) {
   char cellstr[19] = {'A','L','B','M','C','N','D','O','E','P',
 		      'F','Q','G','R','H','S','I','T','J'};
-  TRootEmbeddedCanvas *embeddedCanvas = new TRootEmbeddedCanvas(0,mf,400,400,kSunkenFrame);
+  TRootEmbeddedCanvas *embeddedCanvas = new TRootEmbeddedCanvas("canvasplot",mf,400,400,kSunkenFrame);
   Int_t cId = embeddedCanvas->GetCanvasWindowId();
   fCanvasMap = new TCanvas("CanvasMap", 10, 10, cId);
   fCanvasMap->SetTopMargin(0.03);
@@ -337,7 +344,6 @@ void XYTable::CreatePlot(TGCompositeFrame *mf) {
   mf->AddFrame(embeddedCanvas, new TGLayoutHints(kLHintsLeft | kLHintsTop,5,5,2,2));
   fCanvasMap->SetGridx(1);
   fCanvasMap->SetGridy(1);
-  //fCanvasMap->SetEditable(kFALSE);
   TH2F *axis = new TH2F("axis",";X  [mm];Y  [mm]",100,-55,+55,100,-55,+55);
   axis->SetStats(0);
   axis->Draw();
@@ -368,7 +374,6 @@ void XYTable::CreatePlot(TGCompositeFrame *mf) {
   fPointerObj->Draw("psame");
   fPointerMust->Draw("psame");
   fCanvasMap->SetEditable(kFALSE);
-  //UpdateXYState();
 }
 //====================
 void XYTable::UpdatePointer() {
@@ -383,6 +388,16 @@ void XYTable::UpdateXYState() {
   if(fGTYobj) fGTYobj->GetNumberEntry()->SetNumber( fYobj );
   if(fGLXnow) fGLXnow->SetText( Form("%.3f",fDXnow) );
   if(fGLYnow) fGLYnow->SetText( Form("%.3f",fDYnow) );
+  if((fXnow==fXmust)&&(fXmust==fXobj)) {
+    fGLXsta->SetText( " reached " );
+    fGLXsta->SetForegroundColor(fPixelBlack);
+    fGTXobj->GetNumberEntry()->SetForegroundColor(fPixelBlack);
+  }
+  if((fYnow==fYmust)&&(fYmust==fYobj)) {
+    fGLYsta->SetText( " reached " );
+    fGLYsta->SetForegroundColor(fPixelBlack);
+    fGTYobj->GetNumberEntry()->SetForegroundColor(fPixelBlack);
+  }
   UpdatePointer();
 }
 //====================
@@ -391,14 +406,12 @@ void XYTable::PrepareMove() {
     fMove->SetEnabled(kFALSE);
     fCancel->SetEnabled(kTRUE);
     fReset->SetEnabled(kFALSE);
-    //fClose->SetEnabled(kFALSE);
     return;
   }
 
   fMove->SetEnabled(kFALSE);
   fCancel->SetEnabled(kFALSE);
   fReset->SetEnabled(kFALSE);
-  //fClose->SetEnabled(kTRUE);
 
   bool dosomething = false;
   if(fXobj!=fXmust) {
@@ -422,7 +435,6 @@ void XYTable::PrepareMove() {
     fMove->SetEnabled(kTRUE);
     fMove->SetEnabled(kFALSE);
   }
-  //UpdateXYState();
 }
 //====================
 void XYTable::ResetXY() {
@@ -438,10 +450,9 @@ void XYTable::CancelXY() {
 //====================
 void XYTable::MoveXY() {
   fCallReadPositions->TurnOff();
-  std::cout << "CallMoveXY" << std::endl;
+  //std::cout << "CallMoveXY" << std::endl;
   if( (fXmust==fXobj) && (fYmust==fYobj) ) return;
-
-  std::cout << "Something to do" << std::endl;
+  //std::cout << "Something to do" << std::endl;
   fMove->SetEnabled(kFALSE);
   fReset->SetEnabled(kFALSE);
   fCancel->SetEnabled(kTRUE);
@@ -457,7 +468,7 @@ void XYTable::MoveXY() {
     foutX << Form("%s => %d mm",ts.Data(),fXmust) << std::endl;
     foutX.close();
     LoadLogX();
-    std::cout << "XXX" << fXmust-fXnow << std::endl;
+    //std::cout << "XXX" << fXmust-fXnow << std::endl;
   }
   if(fYmust!=fYobj) {
     fYmust = fYobj;
@@ -467,43 +478,33 @@ void XYTable::MoveXY() {
     foutY << Form("%s => %d mm",ts.Data(),fYmust) << std::endl;
     foutY.close();
     LoadLogY();
-    std::cout << "YYY" << fYmust-fYnow << std::endl;
+    //std::cout << "YYY" << fYmust-fYnow << std::endl;
   }
   fMotor->MoveRelative(2,-1*(fXmust-fXnow),1,fYmust-fYnow); // motorx is reversed
-
   PrepareMove();
   fCallReadPositions->TurnOn();
 }
 //====================
 void XYTable::ReadPositions() {
   //HERE WE READ FROM SCALER
-
-  Int_t xmicrons, ymicrons;
+  Int_t xmicrons = (fXnow = fDXnow = fXmust)*1000;
+  Int_t ymicrons = (fYnow = fDYnow = fYmust)*1000;
+  //std::cout << " >> " << xmicrons << "|" << ymicrons << std::endl;
   fEncoder->ReadXY(xmicrons,ymicrons);
   fXnow = fDXnow = xmicrons/1000.0;
   fYnow = fDYnow = ymicrons/1000.0;
-
-  //std::cout << " VELMEX SAYS " << fMotor->GetStatus() << std::endl;
-  
-  //fXnow = fDXnow = fXmust;
-  //fYnow = fDYnow = fYmust;
-  
   std::ofstream foutL( Form("%sLast.log",sPath.Data()));
   foutL << fXnow << " " << fYnow << std::endl;
   foutL.close();
+  static int every = 0;
+  if(every>30) {
+    //gSystem->Exec("fswebcam -r 640x480 --jpeg 85 --font \"sans:26\" --timestamp \"%Y-%m-%d %H:%M:%S (%Z)\" -S 10 -q Position_Data/currentShot.JPG");
+    fIcon->SetImage(Form("%scurrentShot.JPG",sPath.Data()));
+    fIcon->Resize(640*0.62,480*0.62);
+    every = 0;
+  }
+  every++;
   UpdateXYState();
-
-  if((fXnow==fXmust)&&(fXmust==fXobj)) {
-    fGLXsta->SetText( " reached " );
-    fGLXsta->SetForegroundColor(fPixelBlack);
-    fGTXobj->GetNumberEntry()->SetForegroundColor(fPixelBlack);
-  }
-  if((fYnow==fYmust)&&(fYmust==fYobj)) {
-    fGLYsta->SetText( " reached " );
-    fGLYsta->SetForegroundColor(fPixelBlack);
-    fGTYobj->GetNumberEntry()->SetForegroundColor(fPixelBlack);
-  }
-  //std::cout << "called ReadPositions" << std::endl;
 }
 //====================
 void XYTable::CreateTab1(TGCompositeFrame *tthis) {
@@ -521,7 +522,6 @@ void XYTable::CreateTab1(TGCompositeFrame *tthis) {
   fMainFrames_R1 = new TGCompositeFrame(tthis, 170, 20, kHorizontalFrame);
   fMainFrames_R1C1 = new TGCompositeFrame(fMainFrames_R1, 170, 20, kVerticalFrame);
   fMainFrames_R1C2 = new TGCompositeFrame(fMainFrames_R1, 170, 20, kVerticalFrame);
-  fMainFrames_R1C3 = new TGCompositeFrame(fMainFrames_R1, 170, 20, kVerticalFrame);
   fMainFrames_R4 = new TGCompositeFrame(tthis, 170, 20, kHorizontalFrame);
   fMainFrames_R5 = new TGCompositeFrame(tthis, 170, 20, kHorizontalFrame);
   fMainFrames_R5C1 = new TGCompositeFrame(fMainFrames_R5, 170, 20, kVerticalFrame);
@@ -532,16 +532,14 @@ void XYTable::CreateTab1(TGCompositeFrame *tthis) {
   tthis->AddFrame(fMainFrames_R4, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
   fMainFrames_R1->AddFrame(fMainFrames_R1C1, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
   fMainFrames_R1->AddFrame(fMainFrames_R1C2, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
-  fMainFrames_R1->AddFrame(fMainFrames_R1C3, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
   fMainFrames_R5->AddFrame(fMainFrames_R5C1, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
   fMainFrames_R5->AddFrame(fMainFrames_R5C2, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
 
   fMainFrames_R1C1->ChangeOptions( kRaisedFrame);  
   fMainFrames_R1C2->ChangeOptions( kRaisedFrame);  
 
-  CreateControlTextX(fMainFrames_R1C1);
-  CreateControlTextY(fMainFrames_R1C2);
-  CreateEyes(fMainFrames_R1C3);
+  CreateStatusTextXY(fMainFrames_R1C1);
+  CreateEyes(fMainFrames_R1C2);
 
   CreatePlot(fMainFrames_R5C1);
   CreateControl(fMainFrames_R5C2);
@@ -550,6 +548,7 @@ void XYTable::CreateTab1(TGCompositeFrame *tthis) {
 }
 //====================
 void XYTable::CreateTab2(TGCompositeFrame *tthis) {
+  /*
   TGCompositeFrame *fMainFrames_R1;
   TGCompositeFrame *fMainFrames_R1C1;
   TGCompositeFrame *fMainFrames_R1C2;
@@ -590,6 +589,7 @@ void XYTable::CreateTab2(TGCompositeFrame *tthis) {
   CreateMotorInspection(fMainFrames_R1C1);
 
   CreateEyes(fMainFrames_R1C3);
+  */
 }
 //====================
 XYTable::XYTable(TApplication *app, UInt_t w, UInt_t h) : TGMainFrame(gClient->GetRoot(), w, h) {
@@ -601,6 +601,7 @@ XYTable::XYTable(TApplication *app, UInt_t w, UInt_t h) : TGMainFrame(gClient->G
   fApp = app;
   sPath = "./Position_Data/";
   fCanvasMap = NULL;
+  fCanvasImg = NULL;
   fPointer = NULL;
   fPointerObj = NULL;
   fGTXobj = NULL;
@@ -609,9 +610,10 @@ XYTable::XYTable(TApplication *app, UInt_t w, UInt_t h) : TGMainFrame(gClient->G
   fEncoder = new Mitutoyo("/dev/ttyUSB1");
   
   gClient->GetColorByName("blue", fPixelBlue);
-  gClient->GetColorByName("red", fPixelRed);
-  gClient->GetColorByName("black", fPixelBlack);
-  gClient->GetColorByName("green", fPixelGreen);
+  gClient->GetColorByName("white",fPixelWhite);
+  gClient->GetColorByName("red",  fPixelRed);
+  gClient->GetColorByName("black",fPixelBlack);
+  gClient->GetColorByName("green",fPixelGreen);
 
   for(int r=0; r!=10; ++r)
     for(int c=0; c!=19; ++c) {
@@ -631,7 +633,6 @@ XYTable::XYTable(TApplication *app, UInt_t w, UInt_t h) : TGMainFrame(gClient->G
   fYnow = fYobj = fYmust;
   finL.close();
   fLock = kFALSE;
-  //ReadPositions();
 
   
   TGTab *tabcontainer = new TGTab(this,96,26);

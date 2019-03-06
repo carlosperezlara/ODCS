@@ -5,3 +5,6 @@ then
     source setup_daq.sh
 fi
 
+rcdaq_client daq_begin
+source wait_for_endofrun.sh
+

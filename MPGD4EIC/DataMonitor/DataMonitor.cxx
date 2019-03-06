@@ -32,10 +32,10 @@ void DataMonitor::CreatePlot(TGCompositeFrame *mf) {
   TRootEmbeddedCanvas *embeddedCanvas = new TRootEmbeddedCanvas("canvasplot",mf,400,400,kSunkenFrame);
   Int_t cId = embeddedCanvas->GetCanvasWindowId();
   fCanvasMap = new TCanvas("CanvasMap", 10, 10, cId);
-  fCanvasMap->SetTopMargin(0.03);
+  fCanvasMap->SetTopMargin(0.07);
   fCanvasMap->SetBottomMargin(0.08);
   fCanvasMap->SetLeftMargin(0.11);
-  fCanvasMap->SetRightMargin(0.02);
+  fCanvasMap->SetRightMargin(0.05);
   embeddedCanvas->AdoptCanvas(fCanvasMap);
   mf->AddFrame(embeddedCanvas, new TGLayoutHints(kLHintsLeft | kLHintsTop,5,5,2,2));
   fCanvasMap->SetGridx(1);
@@ -57,7 +57,7 @@ void DataMonitor::RefreshAll() {
 DataMonitor::DataMonitor(TApplication *app, UInt_t w, UInt_t h) : TGMainFrame(gClient->GetRoot(), w, h) {
   fApp = app;
   SetWindowName("Data Monitor and Quality Assurance");
-  fChannel = new TH1D("Channel","Channel",256,-0.5,255.5);
+  fChannel = new TH1D("Channel0","Channel  0",256,-0.5,255.5);
   CreatePlot(this);
   MapSubwindows();
   Layout();

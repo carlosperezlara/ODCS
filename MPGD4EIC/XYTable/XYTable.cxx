@@ -28,6 +28,11 @@
 #include "Mitutoyo.h"
 
 ClassImp(XYTable);
+const int kMotorX=1;
+const int kMotorY=2;
+const TString devVelmex="/dev/ttyUSB0";
+const TString devMitutoyo="/dev/ttyUSB1";
+const bool _TURN_ON_READER_ = false;
 
 void XYTable::CreateControl(TGCompositeFrame *mf) {
   TGTab *tabcontainer = new TGTab(mf,96,26);
@@ -480,7 +485,7 @@ void XYTable::MoveXY() {
     LoadLogY();
     //std::cout << "YYY" << fYmust-fYnow << std::endl;
   }
-  fMotor->MoveRelative(2,-1*(fXmust-fXnow),1,fYmust-fYnow); // motorx is reversed
+  fMotor->MoveRelative(kMotorX,-1*(fXmust-fXnow),kMotorY,fYmust-fYnow);
   PrepareMove();
   fCallReadPositions->TurnOn();
 }
@@ -489,21 +494,26 @@ void XYTable::ReadPositions() {
   //HERE WE READ FROM SCALER
   Int_t xmicrons = (fXnow = fDXnow = fXmust)*1000;
   Int_t ymicrons = (fYnow = fDYnow = fYmust)*1000;
-  //std::cout << " >> " << xmicrons << "|" << ymicrons << std::endl;
-  fEncoder->ReadXY(xmicrons,ymicrons);
+  if(_TURN_ON_READER_) {
+    std::cout << "querying enconder..." << std::endl;
+    fEncoder->ReadXY(xmicrons,ymicrons);
+    std::cout << "done..." << std::endl;
+  }
   fXnow = fDXnow = xmicrons/1000.0;
   fYnow = fDYnow = ymicrons/1000.0;
   std::ofstream foutL( Form("%sLast.log",sPath.Data()));
   foutL << fXnow << " " << fYnow << std::endl;
   foutL.close();
+  /*
   static int every = 0;
-  if(every>30) {
-    //gSystem->Exec("fswebcam -r 640x480 --jpeg 85 --font \"sans:26\" --timestamp \"%Y-%m-%d %H:%M:%S (%Z)\" -S 10 -q Position_Data/currentShot.JPG");
+  if(every>50) {
+    gSystem->Exec("fswebcam -r 640x480 --jpeg 85 --font \"sans:26\" --timestamp \"%Y-%m-%d %H:%M:%S (%Z)\" -S 10 -q Position_Data/currentShot.JPG");
     fIcon->SetImage(Form("%scurrentShot.JPG",sPath.Data()));
     fIcon->Resize(640*0.62,480*0.62);
     every = 0;
   }
   every++;
+  */
   UpdateXYState();
 }
 //====================
@@ -594,10 +604,10 @@ void XYTable::CreateTab2(TGCompositeFrame *tthis) {
 //====================
 XYTable::XYTable(TApplication *app, UInt_t w, UInt_t h) : TGMainFrame(gClient->GetRoot(), w, h) {
 
-  fMotor = new Velmex("/dev/ttyUSB0");
+  fMotor = new Velmex(devVelmex.Data());
   fMotor->Connect();
-  fMotor->SetStepsPerMilimiter(1,1259.1736);//motorY 1259.1736
-  fMotor->SetStepsPerMilimiter(2,126.1402); //motorX 126.1402
+  fMotor->SetStepsPerMilimiter(kMotorY,1259.1736);//motorY 1259.1736
+  fMotor->SetStepsPerMilimiter(kMotorX,126.1402); //motorX 126.1402
   fApp = app;
   sPath = "./Position_Data/";
   fCanvasMap = NULL;
@@ -607,7 +617,7 @@ XYTable::XYTable(TApplication *app, UInt_t w, UInt_t h) : TGMainFrame(gClient->G
   fGTXobj = NULL;
   fGTYobj = NULL;
 
-  fEncoder = new Mitutoyo("/dev/ttyUSB1");
+  fEncoder = new Mitutoyo(devMitutoyo.Data());
   
   gClient->GetColorByName("blue", fPixelBlue);
   gClient->GetColorByName("white",fPixelWhite);

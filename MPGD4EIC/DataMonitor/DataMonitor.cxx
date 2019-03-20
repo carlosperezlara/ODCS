@@ -50,6 +50,9 @@ void DataMonitor::Merge() {
       fHitSummary[i]->Fill(double(j),sum);
     }
   }
+  if(fNoEventsSampled%kMergeRefresh==0) {
+    RefreshAll();
+  }
   //fRefresh->TurnOn();
 }
 //====================
@@ -74,6 +77,7 @@ void DataMonitor::NewRun(Int_t run) {
       fWidth[i][j]->Reset();
     }
   }
+  fNoEventsSampled = 0;
 }
 //====================
 void DataMonitor::NewEvent() {
@@ -83,13 +87,12 @@ void DataMonitor::NewEvent() {
     }
   }
   fEventsReaded += 1;
-  static int times =0;
-  if(times>100) {
-    TString tmp = Form("Events sampled : %.1fk",fEventsReaded*1e-3);
+  fNoEventsSampled += 1;
+  if(fNoEventsSampled%kNewEventRefresh==0) {
+    //TString tmp = Form("Events sampled : %.1fk",fEventsReaded*1e-3);
+    TString tmp = Form("Events sampled : %.1fk",fNoEventsSampled*1e-3);
     fEventsSampled->SetText( tmp.Data() );
-    times = 0;
   }
-  ++times;
 }
 //====================
 void DataMonitor::CreateChannels(TGCompositeFrame *mf) {
@@ -218,7 +221,10 @@ void DataMonitor::CreateTimeSummary(TGCompositeFrame *mf) {
 }
 //====================
 void DataMonitor::RefreshAll() {
-  if(fTabContainer->GetCurrent()==0||fCanvasMap) {
+  std::cout << "  >> RefreshAll called" << std::endl;
+  //fRefresh->TurnOff();
+  if(fTabContainer->GetCurrent()==0&&fCanvasMap) {
+    std::cout << "   current canvas 0" << std::endl;
     fCanvasMap->SetEditable(kTRUE);
     for(int i=0; i!=kNumberOfChannels*kNumberOfBoards; ++i) {
       fCanvasMap->cd(i)->Modified();
@@ -228,7 +234,8 @@ void DataMonitor::RefreshAll() {
     fCanvasMap->Update();
     fCanvasMap->SetEditable(kFALSE);
   }
-  if(fTabContainer->GetCurrent()==1||fCanvasMapS) {
+  if(fTabContainer->GetCurrent()==1&&fCanvasMapS) {
+    std::cout << "   current canvas 1" << std::endl;
     fCanvasMapS->SetEditable(kTRUE);
     for(int i=0; i!=kNumberOfChannels*kNumberOfBoards; ++i) {
       fCanvasMapS->cd(i)->Modified();
@@ -238,7 +245,8 @@ void DataMonitor::RefreshAll() {
     fCanvasMapS->Update();
     fCanvasMapS->SetEditable(kFALSE);
   }
-  if(fTabContainer->GetCurrent()==2||fCanvasMapH) {
+  if(fTabContainer->GetCurrent()==2&&fCanvasMapH) {
+    std::cout << "   current canvas 2" << std::endl;
     fCanvasMapH->SetEditable(kTRUE);
     for(int i=0; i!=kNumberOfChannels*kNumberOfBoards; ++i) {
       fCanvasMapH->cd(i)->Modified();
@@ -248,7 +256,8 @@ void DataMonitor::RefreshAll() {
     fCanvasMapH->Update();
     fCanvasMapH->SetEditable(kFALSE);
   }
-  if(fTabContainer->GetCurrent()==3||fCanvasMapW) {
+  if(fTabContainer->GetCurrent()==3&&fCanvasMapW) {
+    std::cout << "   current canvas 3" << std::endl;
     fCanvasMapW->SetEditable(kTRUE);
     for(int i=0; i!=kNumberOfChannels*kNumberOfBoards; ++i) {
       fCanvasMapW->cd(i)->Modified();
@@ -258,7 +267,8 @@ void DataMonitor::RefreshAll() {
     fCanvasMapW->Update();
     fCanvasMapW->SetEditable(kFALSE);
   }
-  if(fTabContainer->GetCurrent()==4||fCanvasMapHS) {
+  if(fTabContainer->GetCurrent()==4&&fCanvasMapHS) {
+    std::cout << "   current canvas 4" << std::endl;
     fCanvasMapHS->SetEditable(kTRUE);
     for(int i=0; i!=kNumberOfBoards; ++i) {
       fCanvasMapHS->cd(i+1)->Modified();
@@ -268,7 +278,8 @@ void DataMonitor::RefreshAll() {
     fCanvasMapHS->Update();
     fCanvasMapHS->SetEditable(kFALSE);
   }
-  if(fTabContainer->GetCurrent()==5||fCanvasMapTS) {
+  if(fTabContainer->GetCurrent()==5&&fCanvasMapTS) {
+    std::cout << "   current canvas 5" << std::endl;
     fCanvasMapTS->SetEditable(kTRUE);
     for(int i=0; i!=kNumberOfBoards; ++i) {
       fCanvasMapTS->cd(i+1)->Modified();
@@ -278,11 +289,16 @@ void DataMonitor::RefreshAll() {
     fCanvasMapTS->Update();
     fCanvasMapTS->SetEditable(kFALSE);
   }
+  std::cout << "  << RefreshAll called" << std::endl;
+  //fRefresh->TurnOn();
 }
 //====================
 DataMonitor::DataMonitor(TApplication *app, UInt_t w, UInt_t h) : TGMainFrame(gClient->GetRoot(), w, h) {
+
+  std::cout << "DM: I am awaking" << std::endl;
   fApp = app;
   gStyle->SetTitleFontSize(0.2);
+  fNoEventsSampled = 0;
   SetWindowName("Data Monitor and Quality Assurance");
   fTimeSummaryTemp = new TH1D( "TST","TST",kNumberOfSamples,-0.5,kNumberOfSamples-0.5);
   for(int i=0; i!=kNumberOfBoards; ++i) {
@@ -345,6 +361,7 @@ DataMonitor::DataMonitor(TApplication *app, UInt_t w, UInt_t h) : TGMainFrame(gC
   fClosestCell = "XX";
   fPosX = 0;
   fPosY = 0;
+
   TGCompositeFrame *mfR1   = new TGCompositeFrame(this, 170, 20, kHorizontalFrame);
   //TGCompositeFrame *mfR2   = new TGCompositeFrame(this, 170, 20, kHorizontalFrame);
   //TGCompositeFrame *mfR2C1 = new TGCompositeFrame(mfR2, 170, 20, kVerticalFrame);
@@ -375,14 +392,16 @@ DataMonitor::DataMonitor(TApplication *app, UInt_t w, UInt_t h) : TGMainFrame(gC
   MapSubwindows();
   Layout();
   MapWindow();
-  fRefresh = new TTimer();
-  fRefresh->Connect("Timeout()", "DataMonitor", this, "RefreshAll()");
-  fRefresh->Start(5000, kFALSE);
-  fRefresh->TurnOn();
+
+  //std::cout << "DM: All windows are ready now. I will start updating every " << kLoopTime/1000.0 << " seconds. " << std::endl;
+
+  //fRefresh = new TTimer();
+  //fRefresh->Connect("Timeout()", "DataMonitor", this, "RefreshAll()");
+  //fRefresh->Start(kLoopTime, kFALSE);
 }
 //====================
 DataMonitor::~DataMonitor() {
   Cleanup();
-  fRefresh->TurnOff();
+  //fRefresh->TurnOff();
   fApp->Terminate();
 }

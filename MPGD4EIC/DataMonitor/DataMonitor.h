@@ -21,6 +21,8 @@
 const Int_t kNumberOfChannels=26;
 const Int_t kNumberOfBoards=8;
 const Int_t kNumberOfSamples=256;
+const Int_t kMergeRefresh=1000; // noevents
+const Int_t kNewEventRefresh=100; // noevents
 
 class DataMonitor : public TGMainFrame {
  private:
@@ -49,6 +51,7 @@ class DataMonitor : public TGMainFrame {
   TTimer *fRefresh;
   Double_t fPedestals[kNumberOfBoards][kNumberOfChannels];
   Int_t fThisEvent;
+  Int_t fNoEventsSampled;
   Double_t fEventsReaded;
   Double_t fEventsCataloged;
   TString fClosestCell;

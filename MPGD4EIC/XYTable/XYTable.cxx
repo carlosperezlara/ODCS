@@ -32,7 +32,7 @@ const int kMotorX=1;
 const int kMotorY=2;
 const TString devVelmex="/dev/ttyUSB0";
 const TString devMitutoyo="/dev/ttyUSB1";
-const bool _TURN_ON_READER_ = false;
+const bool _TURN_ON_READER_ = true;//false;
 
 void XYTable::CreateControl(TGCompositeFrame *mf) {
   TGTab *tabcontainer = new TGTab(mf,96,26);
@@ -487,7 +487,15 @@ void XYTable::MoveXY() {
   }
   fMotor->MoveRelative(kMotorX,-1*(fXmust-fXnow),kMotorY,fYmust-fYnow);
   PrepareMove();
+  fCallBusy->TurnOn();
   fCallReadPositions->TurnOn();
+}
+//====================
+void XYTable::ReadBusy() {
+  std::cout << "ReadBusy active" << std::endl;
+  if(fXmust==fXnow&&fYmust==fYnow) {
+    fCallBusy->TurnOff();
+  }
 }
 //====================
 void XYTable::ReadPositions() {
@@ -664,6 +672,11 @@ XYTable::XYTable(TApplication *app, UInt_t w, UInt_t h) : TGMainFrame(gClient->G
   fCallReadPositions->Connect("Timeout()", "XYTable", this, "ReadPositions()");
   fCallReadPositions->Start(100, kFALSE);
 
+  fCallBusy = new TTimer();
+  fCallBusy->Connect("Timeout()", "XYTable", this, "ReadBusy()");
+  fCallBusy->Start(500, kFALSE);
+  fCallBusy->TurnOff();
+  
   PrepareMove();
 }
 //====================

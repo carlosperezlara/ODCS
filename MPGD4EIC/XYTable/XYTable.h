@@ -62,6 +62,7 @@ class XYTable : public TGMainFrame {
   TGraph *fPointerObj;
   TGraph *fPointerMust;
   TTimer *fCallReadPositions;
+  TTimer *fCallBusy;
   Pixel_t fPixelRed;
   Pixel_t fPixelWhite;
   Pixel_t fPixelBlue;
@@ -102,7 +103,8 @@ class XYTable : public TGMainFrame {
   void LoadLogX();
   void LoadLogY();
   void LoadLogs();
-  void ReadPositions();  
+  void ReadPositions();
+  void ReadBusy();
 
   ClassDef(XYTable, 0)
 };

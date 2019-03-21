@@ -27,6 +27,7 @@
 #include <iostream>
 
 #include "DataMonitor.h"
+#include "mapping/MappingTableCollection.h"
 
 ClassImp(DataMonitor);
 
@@ -83,18 +84,23 @@ void DataMonitor::NewRun(Int_t run) {
   fNoEventsSampled = 0;
 }
 //====================
-void DataMonitor::NewEvent() {
+void DataMonitor::NewEvent(Int_t evr) {
   for(int i=0; i!=kNumberOfBoards; ++i) {
     for(int j=0; j!=kNumberOfChannels; ++j) {
       fChannel[i][j]->Reset();
     }
   }
+  fThisEvent = evr;
   fEventsReaded += 1;
   fNoEventsSampled += 1;
   static bool __up__ = false;
   if(fNoEventsSampled%kNewEventRefresh==0) {
     TString tmp = Form("Events sampled : %.1fk",fNoEventsSampled*1e-3);
     fEventsSampled->SetText( tmp.Data() );
+    if(fThisEvent>100) {
+      TString tmp = Form("Sampling fraction : %.2f",fNoEventsSampled/double(fThisEvent));
+      fSamplingFraction->SetText( tmp.Data() );
+    }
     if(!__up__) {
       __up__ = true;
       std::cout << "DM: I am ready."<< std::endl;
@@ -155,13 +161,42 @@ void DataMonitor::ReadConfig(TString sfile) {
     std::cout << " | " << i << " " << fBoardCode[i] << " " << fBoardTech[i];
   }
   std::cout << std::endl;
+  for(int i=0; i!=kNumberOfBoards; ++i) {
+    for(int j=0; j!=kNumberOfChannels; ++j) {
+      fPitchX[i][j] = 1;
+      fPeriodY[i][j] = 1;
+      fStretch[i][j] = 1;
+    }
+  }
 }
 //====================
 void DataMonitor::ModelPads(Int_t bd) {
-  fDiagrams[i];
-  Double_t x[100];
-  Double_t y[100];
-  Double_t gx[
+  double x[100];
+  double y[100];
+  double gx = 0;
+  for(int str=0; str!=kNumberOfChannels; ++str) {
+    double xp = fPitchX[bd][str];
+    double wd = 0.8*xp;
+    double yp = fPeriodY[bd][str];
+    double st = fStretch[bd][str];
+    int nvert = (10/yp*2+1)*2;
+    for(int i=0; i!=nvert; ++i) {
+      double sx, sy;
+      if(i<(nvert/2)) {
+	sx = (i%2)*st;
+	sy = i*yp/2;
+      } else {
+	sx = ((i+1)%2)*st;
+	sy = (nvert-i-1)*yp/2;
+      }
+      sx += (i/(nvert/2))*wd;
+      x[i] = gx + sx;
+      y[i] = sy;
+      //cout << x[i] << " | " << y[i] << endl;
+    }
+    fDiagrams[bd]->AddBin(nvert,x,y);
+    gx += xp;
+  }
 }
 //====================
 void DataMonitor::CreateDisplayConfiguration(TGCompositeFrame *mf) {
@@ -173,8 +208,7 @@ void DataMonitor::CreateDisplayConfiguration(TGCompositeFrame *mf) {
   fConfigurationFile->LoadFile(sConfFile.Data());
   fConfigurationFile->GetText();
   fConfigurationFile->Goto( fConfigurationFile->GetText()->RowCount() , 0 );
-  ReadConfig(sConfFile);
-  TRootEmbeddedCanvas *embeddedCanvas = new TRootEmbeddedCanvas("config file",mf,1800,930,kSunkenFrame);
+  TRootEmbeddedCanvas *embeddedCanvas = new TRootEmbeddedCanvas("config file",mf,1800,600,kSunkenFrame);
   Int_t cId = embeddedCanvas->GetCanvasWindowId();
   fCanvasMapCF = new TCanvas("CanvasMapCF", 10, 10, cId);
   embeddedCanvas->AdoptCanvas(fCanvasMapCF);
@@ -182,10 +216,10 @@ void DataMonitor::CreateDisplayConfiguration(TGCompositeFrame *mf) {
   fCanvasMapCF->Divide(kNumberOfBoards,1,0,0);
   for(int i=0; i!=kNumberOfBoards; ++i) {
     TVirtualPad *tmp = fCanvasMapCF->cd(i+1);
-    tmp->SetTopMargin(0.1);
-    tmp->SetBottomMargin(0.1);
-    tmp->SetLeftMargin(0.2);
-    tmp->SetRightMargin(0.1);
+    //tmp->SetTopMargin(0.1);
+    //tmp->SetBottomMargin(0.1);
+    //tmp->SetLeftMargin(0.2);
+    //tmp->SetRightMargin(0.1);
     ModelPads(i);
     fDiagrams[i]->Draw("COL");
   }
@@ -366,8 +400,12 @@ DataMonitor::DataMonitor(TApplication *app, UInt_t w, UInt_t h) {
   fApp = app;
   gStyle->SetTitleFontSize(0.1);
   fNoEventsSampled = 0;
+  TString sConfFile = "./Aquarium_Data/AquaConf.txt";
+  ReadConfig(sConfFile);
   fTimeSummaryTemp = new TH1D( "TST","TST",kNumberOfSamples,-0.5,kNumberOfSamples-0.5);
   for(int i=0; i!=kNumberOfBoards; ++i) {
+    fDiagrams[i] = new TH2Poly( Form("BD%d",i), Form("BD%d;X [mm];Y [mm]",i), 0,30,0,10);
+    fDiagrams[i]->SetStats(0);
     fHitSummary[i] = new TH1D( Form("HS%d",i),Form("HS%d;chn  idx;counts",i),kNumberOfChannels,-0.5,kNumberOfChannels-0.5);
     fHitSummary[i]->SetFillColor(kBlue-3);
     fHitSummary[i]->SetLineColor(kBlue-3);

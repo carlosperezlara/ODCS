@@ -69,9 +69,9 @@ class DataMonitor {
   Double_t fPosY;
   TString fBoardCode[kNumberOfBoards];
   TString fBoardTech[kNumberOfBoards];
-  Double_t fPitchX[kNumberOfChannels];
-  Double_t fPeriodY[kNumberOfChannels];
-  Double_t fStretch[kNumberOfChannels];
+  Double_t fPitchX[kNumberOfBoards][kNumberOfChannels];
+  Double_t fPeriodY[kNumberOfBoards][kNumberOfChannels];
+  Double_t fStretch[kNumberOfBoards][kNumberOfChannels];
 
  public:
   DataMonitor(TApplication *app, UInt_t w, UInt_t h);
@@ -79,7 +79,7 @@ class DataMonitor {
   void RefreshAll();
   TH1D *GetChannel(int b, int s) {return fChannel[b][s];}
   void NewRun(Int_t run);
-  void NewEvent();
+  void NewEvent(Int_t evr);
   void Merge();
   TGLabel *fThisRun;
   TGLabel *fEventsSampled;

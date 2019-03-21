@@ -34,10 +34,11 @@ int process_event (Event * e) {
     gDM->NewRun(run);
     gCurrentRun = run;
   }
-  gDM->NewEvent();
+  Int_t evnr = e->getEvtSequence();
+  gDM->NewEvent( evnr );
   Packet *p = e->getPacket(1003); // example packet
   //Packet *p = e->getPacket(1001); // test packet
-  if(p) {
+  //if(p) {
     gHist1D = NULL;
     for(int i=0; i!=8; ++i) {
       for(int j=0; j!=26; ++j) {
@@ -47,7 +48,7 @@ int process_event (Event * e) {
 	}
       }
     }
-  }
+    //}
   delete p;
   //std::cout << " pmonitor::process_event built ]. Launching merge..." << std::endl;
   gDM->Merge();
@@ -58,11 +59,20 @@ int process_event (Event * e) {
 //======================
 //======================
 //======================
-int main() {
+int main(int nn, char** arg) {
+  if(nn>1) {
+    //TString filename = "/data/purschke/mrwell/mrwell-00000363-0000.evt";
+    TString filename = arg[1];
+    std::cout << filename.Data() << std::endl;
+    pfileopen( filename.Data() );
+    //ptestopen();
+  } else {
+    rcdaqopen();
+  }
+
   TApplication *app = new TApplication("gui",0,0);
   gDM = new DataMonitor(app, 1600, 850);
-  ptestopen();
-  //poncsopen("test/rcdaq-00000001-0000.evt");
+
   pstart();
   app->Run();
   return 0;

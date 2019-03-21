@@ -59,6 +59,7 @@ void DataMonitor::Merge() {
 void DataMonitor::StampRun(TGCompositeFrame *mf) {
   TGLabel *labs;
   fThisRun = new TGLabel(mf, "Run : -1" );
+  //TGFont *font = fThisRun->GetFont();
   mf->AddFrame(fThisRun, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
   labs = new TGLabel(mf, Form("Position : ( %.1f, %.1f )", fPosX, fPosY) );
   mf->AddFrame(labs, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
@@ -66,6 +67,8 @@ void DataMonitor::StampRun(TGCompositeFrame *mf) {
   mf->AddFrame(labs, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
   fEventsSampled = new TGLabel(mf, "Events sampled: 0.0k" );
   mf->AddFrame(fEventsSampled, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
+  fSamplingFraction = new TGLabel(mf, "Sampling fraction: 0.0" );
+  mf->AddFrame(fSamplingFraction, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
 }
 //====================
 void DataMonitor::NewRun(Int_t run) {
@@ -88,15 +91,19 @@ void DataMonitor::NewEvent() {
   }
   fEventsReaded += 1;
   fNoEventsSampled += 1;
+  static bool __up__ = false;
   if(fNoEventsSampled%kNewEventRefresh==0) {
-    //TString tmp = Form("Events sampled : %.1fk",fEventsReaded*1e-3);
     TString tmp = Form("Events sampled : %.1fk",fNoEventsSampled*1e-3);
     fEventsSampled->SetText( tmp.Data() );
+    if(!__up__) {
+      __up__ = true;
+      std::cout << "DM: I am ready."<< std::endl;
+    }
   }
 }
 //====================
 void DataMonitor::CreateChannels(TGCompositeFrame *mf) {
-  TRootEmbeddedCanvas *embeddedCanvas = new TRootEmbeddedCanvas("channelsplot",mf,1600,800,kSunkenFrame);
+  TRootEmbeddedCanvas *embeddedCanvas = new TRootEmbeddedCanvas("channelsplot",mf,1800,930,kSunkenFrame);
   Int_t cId = embeddedCanvas->GetCanvasWindowId();
   fCanvasMap = new TCanvas("CanvasMap", 10, 10, cId);
   embeddedCanvas->AdoptCanvas(fCanvasMap);
@@ -110,7 +117,7 @@ void DataMonitor::CreateChannels(TGCompositeFrame *mf) {
   axis->SetStats(0);
   axis->GetYaxis()->SetLabelSize(0.1);
   axis->GetXaxis()->SetLabelSize(0.1);
-  axis->SetTitleSize(50);
+  //axis->SetTitleSize(50);
   axis->GetXaxis()->SetNdivisions(508);
   axis->GetYaxis()->SetNdivisions(508);
   for(int i=0; i!=kNumberOfBoards; ++i) {
@@ -124,8 +131,68 @@ void DataMonitor::CreateChannels(TGCompositeFrame *mf) {
   fCanvasMap->SetEditable(kFALSE);
 }
 //====================
+void DataMonitor::ReadConfig(TString sfile) {
+  std::ifstream fin( sfile.Data() );
+  TString tmp;
+  for(;;) {
+    fin >> tmp;
+    if(!fin.good()) break;
+    if( tmp.Contains("GAS") ) {
+      fin >> tmp; // discard
+    }
+    if( tmp.Contains("BOARD") ) {
+      for(int i=0; i!=kNumberOfBoards; ++i) {
+	fin >> fBoardCode[i];
+      }
+    }
+    if( tmp.Contains("TECH") ) {
+      for(int i=0; i!=kNumberOfBoards; ++i) {
+	fin >> fBoardTech[i];
+      }
+    }
+  }
+  for(int i=0; i!=kNumberOfBoards; ++i) {
+    std::cout << " | " << i << " " << fBoardCode[i] << " " << fBoardTech[i];
+  }
+  std::cout << std::endl;
+}
+//====================
+void DataMonitor::ModelPads(Int_t bd) {
+  fDiagrams[i];
+  Double_t x[100];
+  Double_t y[100];
+  Double_t gx[
+}
+//====================
+void DataMonitor::CreateDisplayConfiguration(TGCompositeFrame *mf) {
+  TGCompositeFrame *mfR1 = new TGCompositeFrame(mf, 170, 20, kVerticalFrame);
+  mf->AddFrame(mfR1, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
+  TGTextEdit *fConfigurationFile = new TGTextEdit(mfR1,300,250);
+  mfR1->AddFrame(fConfigurationFile, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
+  TString sConfFile = "./Aquarium_Data/AquaConf.txt";
+  fConfigurationFile->LoadFile(sConfFile.Data());
+  fConfigurationFile->GetText();
+  fConfigurationFile->Goto( fConfigurationFile->GetText()->RowCount() , 0 );
+  ReadConfig(sConfFile);
+  TRootEmbeddedCanvas *embeddedCanvas = new TRootEmbeddedCanvas("config file",mf,1800,930,kSunkenFrame);
+  Int_t cId = embeddedCanvas->GetCanvasWindowId();
+  fCanvasMapCF = new TCanvas("CanvasMapCF", 10, 10, cId);
+  embeddedCanvas->AdoptCanvas(fCanvasMapCF);
+  mf->AddFrame(embeddedCanvas, new TGLayoutHints(kLHintsLeft | kLHintsTop,5,5,2,2));
+  fCanvasMapCF->Divide(kNumberOfBoards,1,0,0);
+  for(int i=0; i!=kNumberOfBoards; ++i) {
+    TVirtualPad *tmp = fCanvasMapCF->cd(i+1);
+    tmp->SetTopMargin(0.1);
+    tmp->SetBottomMargin(0.1);
+    tmp->SetLeftMargin(0.2);
+    tmp->SetRightMargin(0.1);
+    ModelPads(i);
+    fDiagrams[i]->Draw("COL");
+  }
+}
+//====================
 void DataMonitor::CreateSignals(TGCompositeFrame *mf) {
-  TRootEmbeddedCanvas *embeddedCanvas = new TRootEmbeddedCanvas("signalsplot",mf,1600,800,kSunkenFrame);
+  TRootEmbeddedCanvas *embeddedCanvas = new TRootEmbeddedCanvas("signalsplot",mf,1800,930,kSunkenFrame);
   Int_t cId = embeddedCanvas->GetCanvasWindowId();
   fCanvasMapS = new TCanvas("CanvasMapS", 10, 10, cId);
   embeddedCanvas->AdoptCanvas(fCanvasMapS);
@@ -138,14 +205,14 @@ void DataMonitor::CreateSignals(TGCompositeFrame *mf) {
       tmp->SetBottomMargin(0.1);
       tmp->SetLeftMargin(0.2);
       tmp->SetRightMargin(0.1);
-      fSignal[i][j]->Draw("B");
+      fSignal[i][j]->Draw("HIST");
     }
   }
   fCanvasMapS->SetEditable(kFALSE);
 }
 //====================
 void DataMonitor::CreateHeights(TGCompositeFrame *mf) {
-  TRootEmbeddedCanvas *embeddedCanvas = new TRootEmbeddedCanvas("heightsplot",mf,1600,800,kSunkenFrame);
+  TRootEmbeddedCanvas *embeddedCanvas = new TRootEmbeddedCanvas("heightsplot",mf,1800,930,kSunkenFrame);
   Int_t cId = embeddedCanvas->GetCanvasWindowId();
   fCanvasMapH = new TCanvas("CanvasMapH", 10, 10, cId);
   embeddedCanvas->AdoptCanvas(fCanvasMapH);
@@ -158,14 +225,14 @@ void DataMonitor::CreateHeights(TGCompositeFrame *mf) {
       tmp->SetBottomMargin(0.1);
       tmp->SetLeftMargin(0.2);
       tmp->SetRightMargin(0.1);
-      fHeight[i][j]->Draw("B");
+      fHeight[i][j]->Draw("HIST");
     }
   }
   fCanvasMapH->SetEditable(kFALSE);
 }
 //====================
 void DataMonitor::CreateWidths(TGCompositeFrame *mf) {
-  TRootEmbeddedCanvas *embeddedCanvas = new TRootEmbeddedCanvas("heightsplot",mf,1600,800,kSunkenFrame);
+  TRootEmbeddedCanvas *embeddedCanvas = new TRootEmbeddedCanvas("heightsplot",mf,1800,930,kSunkenFrame);
   Int_t cId = embeddedCanvas->GetCanvasWindowId();
   fCanvasMapW = new TCanvas("CanvasMapW", 10, 10, cId);
   embeddedCanvas->AdoptCanvas(fCanvasMapW);
@@ -178,97 +245,98 @@ void DataMonitor::CreateWidths(TGCompositeFrame *mf) {
       tmp->SetBottomMargin(0.1);
       tmp->SetLeftMargin(0.2);
       tmp->SetRightMargin(0.1);
-      fWidth[i][j]->Draw("B");
+      fWidth[i][j]->Draw("HIST");
     }
   }
   fCanvasMapW->SetEditable(kFALSE);
 }
 //====================
 void DataMonitor::CreateHitSummary(TGCompositeFrame *mf) {
-  TRootEmbeddedCanvas *embeddedCanvas = new TRootEmbeddedCanvas("hitsummaryplot",mf,1600,800,kSunkenFrame);
+  TRootEmbeddedCanvas *embeddedCanvas = new TRootEmbeddedCanvas("hitsummaryplot",mf,1000,1000,kSunkenFrame);
   Int_t cId = embeddedCanvas->GetCanvasWindowId();
   fCanvasMapHS = new TCanvas("CanvasMapHS", 10, 10, cId);
   embeddedCanvas->AdoptCanvas(fCanvasMapHS);
   mf->AddFrame(embeddedCanvas, new TGLayoutHints(kLHintsLeft | kLHintsTop,5,5,2,2));
-  fCanvasMapHS->Divide(kNumberOfBoards/2,2,0,0);
+  fCanvasMapHS->Divide(2,kNumberOfBoards/2,0,0);
   for(int i=0; i!=kNumberOfBoards; ++i) {
     TVirtualPad *tmp = fCanvasMapHS->cd(i+1);
     tmp->SetTopMargin(0.1);
     tmp->SetBottomMargin(0.1);
     tmp->SetLeftMargin(0.2);
     tmp->SetRightMargin(0.1);
-    fHitSummary[i]->Draw("B");
+    fHitSummary[i]->Draw("HIST");
   }
   fCanvasMapHS->SetEditable(kFALSE);
 }
 //====================
 void DataMonitor::CreateTimeSummary(TGCompositeFrame *mf) {
-  TRootEmbeddedCanvas *embeddedCanvas = new TRootEmbeddedCanvas("hitsummaryplot",mf,1600,800,kSunkenFrame);
+  TRootEmbeddedCanvas *embeddedCanvas = new TRootEmbeddedCanvas("hitsummaryplot",mf,1000,1000,kSunkenFrame);
   Int_t cId = embeddedCanvas->GetCanvasWindowId();
   fCanvasMapTS = new TCanvas("CanvasMapTS", 10, 10, cId);
   embeddedCanvas->AdoptCanvas(fCanvasMapTS);
   mf->AddFrame(embeddedCanvas, new TGLayoutHints(kLHintsLeft | kLHintsTop,5,5,2,2));
-  fCanvasMapTS->Divide(kNumberOfBoards/2,2,0,0);
+  fCanvasMapTS->Divide(2,kNumberOfBoards/2,0,0);
   for(int i=0; i!=kNumberOfBoards; ++i) {
     TVirtualPad *tmp = fCanvasMapTS->cd(i+1);
     tmp->SetTopMargin(0.1);
     tmp->SetBottomMargin(0.1);
     tmp->SetLeftMargin(0.2);
     tmp->SetRightMargin(0.1);
-    fTimeSummary[i]->Draw("B");
+    fTimeSummary[i]->Draw("HIST");
   }
   fCanvasMapTS->SetEditable(kFALSE);
 }
 //====================
 void DataMonitor::RefreshAll() {
-  std::cout << "  >> RefreshAll called" << std::endl;
+  //std::cout << "  >> RefreshAll called" << std::endl;
   //fRefresh->TurnOff();
-  if(fTabContainer->GetCurrent()==0&&fCanvasMap) {
-    std::cout << "   current canvas 0" << std::endl;
+  if(fTabContainer->GetCurrent()==1&&fCanvasMap) {
+    //std::cout << "   current canvas 1" << std::endl;
     fCanvasMap->SetEditable(kTRUE);
     for(int i=0; i!=kNumberOfChannels*kNumberOfBoards; ++i) {
-      fCanvasMap->cd(i)->Modified();
-      fCanvasMap->cd(i)->Update();
+      fCanvasMap->cd(i+1)->Modified();
+      fCanvasMap->cd(i+1)->Update();
     }
     fCanvasMap->Modified();
     fCanvasMap->Update();
     fCanvasMap->SetEditable(kFALSE);
   }
-  if(fTabContainer->GetCurrent()==1&&fCanvasMapS) {
-    std::cout << "   current canvas 1" << std::endl;
+  if(fTabContainer->GetCurrent()==2&&fCanvasMapS) {
+    //std::cout << "   current canvas 2" << std::endl;
     fCanvasMapS->SetEditable(kTRUE);
     for(int i=0; i!=kNumberOfChannels*kNumberOfBoards; ++i) {
-      fCanvasMapS->cd(i)->Modified();
-      fCanvasMapS->cd(i)->Update();
+      fCanvasMapS->cd(i+1)->Modified();
+      fCanvasMapS->cd(i+1)->Update();
     }
     fCanvasMapS->Modified();
     fCanvasMapS->Update();
     fCanvasMapS->SetEditable(kFALSE);
   }
-  if(fTabContainer->GetCurrent()==2&&fCanvasMapH) {
-    std::cout << "   current canvas 2" << std::endl;
+  if(fTabContainer->GetCurrent()==3&&fCanvasMapH) {
+    //std::cout << "   current canvas 3" << std::endl;
     fCanvasMapH->SetEditable(kTRUE);
     for(int i=0; i!=kNumberOfChannels*kNumberOfBoards; ++i) {
-      fCanvasMapH->cd(i)->Modified();
-      fCanvasMapH->cd(i)->Update();
+      fCanvasMapH->cd(i+1)->Modified();
+      fCanvasMapH->cd(i+1)->Update();
     }
     fCanvasMapH->Modified();
     fCanvasMapH->Update();
     fCanvasMapH->SetEditable(kFALSE);
   }
-  if(fTabContainer->GetCurrent()==3&&fCanvasMapW) {
-    std::cout << "   current canvas 3" << std::endl;
+  if(fTabContainer->GetCurrent()==4&&fCanvasMapW) {
+    //std::cout << "   current canvas 4" << std::endl;
     fCanvasMapW->SetEditable(kTRUE);
     for(int i=0; i!=kNumberOfChannels*kNumberOfBoards; ++i) {
-      fCanvasMapW->cd(i)->Modified();
-      fCanvasMapW->cd(i)->Update();
+      fCanvasMapW->cd(i+1)->Modified();
+      fCanvasMapW->cd(i+1)->Update();
     }
     fCanvasMapW->Modified();
     fCanvasMapW->Update();
     fCanvasMapW->SetEditable(kFALSE);
   }
-  if(fTabContainer->GetCurrent()==4&&fCanvasMapHS) {
-    std::cout << "   current canvas 4" << std::endl;
+
+  //if(fTabContainer->GetCurrent()==4&&fCanvasMapHS) {
+  //std::cout << "   current canvas 4" << std::endl;
     fCanvasMapHS->SetEditable(kTRUE);
     for(int i=0; i!=kNumberOfBoards; ++i) {
       fCanvasMapHS->cd(i+1)->Modified();
@@ -277,9 +345,9 @@ void DataMonitor::RefreshAll() {
     fCanvasMapHS->Modified();
     fCanvasMapHS->Update();
     fCanvasMapHS->SetEditable(kFALSE);
-  }
-  if(fTabContainer->GetCurrent()==5&&fCanvasMapTS) {
-    std::cout << "   current canvas 5" << std::endl;
+    //}
+    //if(fTabContainer->GetCurrent()==5&&fCanvasMapTS) {
+    //std::cout << "   current canvas 5" << std::endl;
     fCanvasMapTS->SetEditable(kTRUE);
     for(int i=0; i!=kNumberOfBoards; ++i) {
       fCanvasMapTS->cd(i+1)->Modified();
@@ -288,32 +356,30 @@ void DataMonitor::RefreshAll() {
     fCanvasMapTS->Modified();
     fCanvasMapTS->Update();
     fCanvasMapTS->SetEditable(kFALSE);
-  }
-  std::cout << "  << RefreshAll called" << std::endl;
+    //}
+    //std::cout << "  << RefreshAll called" << std::endl;
   //fRefresh->TurnOn();
 }
 //====================
-DataMonitor::DataMonitor(TApplication *app, UInt_t w, UInt_t h) : TGMainFrame(gClient->GetRoot(), w, h) {
-
+DataMonitor::DataMonitor(TApplication *app, UInt_t w, UInt_t h) {
   std::cout << "DM: I am awaking" << std::endl;
   fApp = app;
-  gStyle->SetTitleFontSize(0.2);
+  gStyle->SetTitleFontSize(0.1);
   fNoEventsSampled = 0;
-  SetWindowName("Data Monitor and Quality Assurance");
   fTimeSummaryTemp = new TH1D( "TST","TST",kNumberOfSamples,-0.5,kNumberOfSamples-0.5);
   for(int i=0; i!=kNumberOfBoards; ++i) {
-    fHitSummary[i] = new TH1D( Form("HS%d",i),Form("HS%d",i),kNumberOfChannels,-0.5,kNumberOfChannels-0.5);
+    fHitSummary[i] = new TH1D( Form("HS%d",i),Form("HS%d;chn  idx;counts",i),kNumberOfChannels,-0.5,kNumberOfChannels-0.5);
     fHitSummary[i]->SetFillColor(kBlue-3);
     fHitSummary[i]->SetLineColor(kBlue-3);
-    fHitSummary[i]->SetStats(0);
+    fHitSummary[i]->SetStats(1);
     fHitSummary[i]->GetYaxis()->SetLabelSize(0.1);
     fHitSummary[i]->GetXaxis()->SetLabelSize(0.1);
     fHitSummary[i]->GetXaxis()->SetNdivisions(504);
     fHitSummary[i]->GetYaxis()->SetNdivisions(508);
-    fTimeSummary[i] = new TH1D( Form("TS%d",i),Form("TS%d",i),kNumberOfSamples,-0.5,kNumberOfSamples-0.5);
+    fTimeSummary[i] = new TH1D( Form("TS%d",i),Form("TS%d;sample  idx;counts",i),kNumberOfSamples,-0.5,kNumberOfSamples-0.5);
     fTimeSummary[i]->SetFillColor(kBlue-3);
     fTimeSummary[i]->SetLineColor(kBlue-3);
-    fTimeSummary[i]->SetStats(0);
+    fTimeSummary[i]->SetStats(1);
     fTimeSummary[i]->GetYaxis()->SetLabelSize(0.1);
     fTimeSummary[i]->GetXaxis()->SetLabelSize(0.1);
     fTimeSummary[i]->GetXaxis()->SetNdivisions(504);
@@ -362,36 +428,63 @@ DataMonitor::DataMonitor(TApplication *app, UInt_t w, UInt_t h) : TGMainFrame(gC
   fPosX = 0;
   fPosY = 0;
 
-  TGCompositeFrame *mfR1   = new TGCompositeFrame(this, 170, 20, kHorizontalFrame);
-  //TGCompositeFrame *mfR2   = new TGCompositeFrame(this, 170, 20, kHorizontalFrame);
-  //TGCompositeFrame *mfR2C1 = new TGCompositeFrame(mfR2, 170, 20, kVerticalFrame);
-  //TGCompositeFrame *mfR2C2 = new TGCompositeFrame(mfR2, 170, 20, kVerticalFrame);
-  //mfR2->AddFrame(mfR2C1, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
-  //mfR2->AddFrame(mfR2C2, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
-  this->AddFrame(mfR1, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
-  //this->AddFrame(mfR2, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
-  //CreatePlot(mfR2);
-  StampRun(mfR1);
+  fWindowHitSummary = new TGMainFrame(gClient->GetRoot(), 950, 1050);
+  fWindowHitSummary->SetWindowName("On-the-fly Cluster Reconstruction");
+  fWindowHitSummary->SetWMPosition(2000,0);
+  fTabContainer2 = new TGTab(fWindowHitSummary,96,26);
+  fWindowHitSummary->AddFrame(fTabContainer2, new TGLayoutHints(kLHintsTop | kLHintsExpandX,2,2,2,2));
+  TGCompositeFrame *tab0_2 = fTabContainer2->AddTab("Weighted Average of Hit Distribution");
+  CreateHitSummary(tab0_2);
+  TGCompositeFrame *tab1_2 = fTabContainer2->AddTab("Cluster Distribution");
+  //CreateHitSummary(tab0_2);
 
-  fTabContainer = new TGTab(this,96,26);
+  fWindowTimeSummary = new TGMainFrame(gClient->GetRoot(), 950, 1050);
+  fWindowTimeSummary->SetWindowName("Weighted Average of Wave Profile");
+  fWindowTimeSummary->SetWMPosition(100,0);
+  CreateTimeSummary(fWindowTimeSummary);
+
+  //========= SIGNAL INSPECTOR
+  fWindowDetails = new TGMainFrame(gClient->GetRoot(), 1900, 1000);
+  fWindowDetails->SetWindowName("Basic Information");
+  fWindowDetails->SetWMPosition(0,0);
+  
+  TGCompositeFrame *mfR1 = new TGCompositeFrame(fWindowDetails, 170, 20, kHorizontalFrame);
+  fWindowDetails->AddFrame(mfR1, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
+  StampRun(mfR1);
+  fTabContainer = new TGTab(fWindowDetails,96,26);
+  fWindowDetails->AddFrame(fTabContainer, new TGLayoutHints(kLHintsTop | kLHintsExpandX,2,2,2,2));
+
+  TGCompositeFrame *tab0 = fTabContainer->AddTab("Configuration");
+  CreateDisplayConfiguration(tab0);
   TGCompositeFrame *tab1 = fTabContainer->AddTab("Last Event");
   CreateChannels(tab1);
   TGCompositeFrame *tab2 = fTabContainer->AddTab("Signal");
   CreateSignals(tab2);
   TGCompositeFrame *tab3 = fTabContainer->AddTab("Height");
   CreateHeights(tab3);
-  TGCompositeFrame *tab4 = fTabContainer->AddTab("Pulse");
+  TGCompositeFrame *tab4 = fTabContainer->AddTab("Integral");
   CreateWidths(tab4);
-  TGCompositeFrame *tab5 = fTabContainer->AddTab("Hit Summary");
-  CreateHitSummary(tab5);
-  TGCompositeFrame *tab6 = fTabContainer->AddTab("Time Summary");
-  CreateTimeSummary(tab6);
-  fTabContainer->SetTab(4);
-  this->AddFrame(fTabContainer, new TGLayoutHints(kLHintsTop | kLHintsExpandX,2,2,2,2));
 
-  MapSubwindows();
-  Layout();
-  MapWindow();
+  fWindowDetails->MapSubwindows();
+  fWindowDetails->Layout();
+  fWindowDetails->MapWindow();
+  fWindowDetails->Move(0,0);
+
+  fWindowHitSummary->MapSubwindows();
+  fWindowHitSummary->Layout();
+  fWindowHitSummary->MapWindow();
+  fWindowHitSummary->Move(3000,0);
+
+  fWindowTimeSummary->MapSubwindows();
+  fWindowTimeSummary->Layout();
+  fWindowTimeSummary->MapWindow();
+  fWindowTimeSummary->Move(1500,0);
+
+
+  //TGCompositeFrame *tab5 = fTabContainer->AddTab("Hit Summary");
+  //TGCompositeFrame *tab6 = fTabContainer->AddTab("Time Summary");
+  fTabContainer->SetTab(0);
+
 
   //std::cout << "DM: All windows are ready now. I will start updating every " << kLoopTime/1000.0 << " seconds. " << std::endl;
 
@@ -401,7 +494,9 @@ DataMonitor::DataMonitor(TApplication *app, UInt_t w, UInt_t h) : TGMainFrame(gC
 }
 //====================
 DataMonitor::~DataMonitor() {
-  Cleanup();
+  fWindowDetails->Cleanup();
+  fWindowHitSummary->Cleanup();
+  fWindowTimeSummary->Cleanup();
   //fRefresh->TurnOff();
   fApp->Terminate();
 }

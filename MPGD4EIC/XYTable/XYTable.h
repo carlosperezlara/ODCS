@@ -43,6 +43,7 @@ class XYTable : public TGMainFrame {
   TGLabel *fMotorXLU;
   TGLabel *fMotorYLU;
 
+  Bool_t fRemoteMove;
   Bool_t fLock;
   int fXnow;
   int fYnow;
@@ -54,7 +55,10 @@ class XYTable : public TGMainFrame {
   Double_t fDYnow;
   Double_t fDXmust;
   Double_t fDYmust;
+  Double_t fSPMX;
+  Double_t fSPMY;
 
+  
   TCanvas *fCanvasMap;
   TCanvas *fCanvasImg;
   TImage *fImg;
@@ -96,7 +100,6 @@ class XYTable : public TGMainFrame {
   void SetXY();
   void UpdateXYState();
   void UpdatePointer();
-  void ReadRawPositions();
   void MoveXY();
   void ResetXY();
   void CancelXY();

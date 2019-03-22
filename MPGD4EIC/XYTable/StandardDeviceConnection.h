@@ -13,11 +13,13 @@ class StandardDeviceConnection {
   TString fDevice;
   Int_t   fFileDescriptor;
   Int_t   fMode;
+  Int_t   fNULL;
 
  public:
   StandardDeviceConnection();
   StandardDeviceConnection(TString,Int_t);
   virtual ~StandardDeviceConnection();
+  int Error() {return fNULL;}
   void SetDeviceAddress(TString val) {fDevice = val;}
   void SetDeviceAccessMode(Int_t val) {fMode = val;}
   void Init();

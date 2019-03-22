@@ -13,12 +13,14 @@ ClassImp(StandardDeviceConnection);
 //======
 StandardDeviceConnection::StandardDeviceConnection() {
   fDevice = "/dev/NULL";
+  fNULL = 0;
   fFileDescriptor = -1;
   fMode = O_RDWR;
 }
 //======
 StandardDeviceConnection::StandardDeviceConnection(TString dev, Int_t mode) {
   fDevice = dev;
+  fNULL = 0;
   fFileDescriptor = -1;
   fMode = mode;
   Init();
@@ -33,6 +35,7 @@ void StandardDeviceConnection::Init() {
   fFileDescriptor = open(fDevice.Data(), fMode);
   if(fFileDescriptor<0) {
     std::cout << "StandardDeviceConnection::Init() cannot open device!" << std::endl;
+    fNULL = 1;
   }
 }
 //======

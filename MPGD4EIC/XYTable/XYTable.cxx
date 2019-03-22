@@ -32,7 +32,7 @@ const int kMotorX=1;
 const int kMotorY=2;
 const TString devVelmex="/dev/ttyUSB0";
 const TString devMitutoyo="/dev/ttyUSB1";
-const bool _TURN_ON_READER_ = true;//false;
+const bool _TURN_ON_READER_ = false;
 
 void XYTable::CreateControl(TGCompositeFrame *mf) {
   TGTab *tabcontainer = new TGTab(mf,96,26);
@@ -180,16 +180,6 @@ void XYTable::CreateMotorInspection(TGCompositeFrame *mf) {
   tExpX->AddFrame(fMotorX, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
   fMotorXLU = new TGLabel(tExpX,"now");
   tExpX->AddFrame(fMotorXLU, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
-}
-//====================
-void XYTable::ReadRawPositions() {
-  TTimeStamp timestamp;
-  TString respX = fMotor->GetCurrentPosition(1);
-  if(fMotorX&&respX!="") {
-    fMotorX->SetText( respX.Data() );
-    TString ts = timestamp.AsString("s");
-    fMotorXLU->SetText( ts.Data() );
-  }
 }
 //====================
 void XYTable::CreateStatusTextXY(TGCompositeFrame *mf) {
@@ -407,13 +397,14 @@ void XYTable::UpdateXYState() {
 }
 //====================
 void XYTable::PrepareMove() {
-  if(!fMotor->IsReady()) {
-    fMove->SetEnabled(kFALSE);
-    fCancel->SetEnabled(kTRUE);
-    fReset->SetEnabled(kFALSE);
-    return;
+  if(fMotor) {
+    if(!fMotor->IsReady()) {
+      fMove->SetEnabled(kFALSE);
+      fCancel->SetEnabled(kTRUE);
+      fReset->SetEnabled(kFALSE);
+      return;
+    }
   }
-
   fMove->SetEnabled(kFALSE);
   fCancel->SetEnabled(kFALSE);
   fReset->SetEnabled(kFALSE);
@@ -449,8 +440,10 @@ void XYTable::ResetXY() {
 }
 //====================
 void XYTable::CancelXY() {
-  fMotor->Abort();
-  PrepareMove();
+  if(fMotor) {
+    fMotor->Abort();
+    PrepareMove();
+  }
 }
 //====================
 void XYTable::MoveXY() {
@@ -485,12 +478,20 @@ void XYTable::MoveXY() {
     LoadLogY();
     //std::cout << "YYY" << fYmust-fYnow << std::endl;
   }
-  fMotor->MoveRelative(kMotorX,-1*(fXmust-fXnow),kMotorY,fYmust-fYnow);
+  if(fMotor) {
+    fMotor->MoveRelative(kMotorX,-1*(fXmust-fXnow),kMotorY,fYmust-fYnow);
+  } else {
+    fCallReadPositions->TurnOn();
+    LoopMove();
+  }
   PrepareMove();
   fCallBusy->TurnOn();
   fCallReadPositions->TurnOn();
 }
 //====================
+void XYTable::ReadBusy() {
+}
+  //====================
 void XYTable::ReadBusy() {
   std::cout << "ReadBusy active" << std::endl;
   if(fXmust==fXnow&&fYmust==fYnow) {
@@ -503,15 +504,23 @@ void XYTable::ReadPositions() {
   Int_t xmicrons = (fXnow = fDXnow = fXmust)*1000;
   Int_t ymicrons = (fYnow = fDYnow = fYmust)*1000;
   if(_TURN_ON_READER_) {
-    std::cout << "querying enconder..." << std::endl;
-    fEncoder->ReadXY(xmicrons,ymicrons);
-    std::cout << "done..." << std::endl;
+    //std::cout << "querying enconder..." << std::endl;
+    if(fEncoder) {
+      fEncoder->ReadXY(xmicrons,ymicrons);
+      fXnow = fDXnow = xmicrons/1000.0;
+      fYnow = fDYnow = ymicrons/1000.0;
+    } else {
+      gSystem->Exec( Form("getpos > %sencquery.tmp",sPath.Data()) );
+      std::ifstream finL( Form("%sencquery.tmp",sPath.Data()));
+      fin >> fXnow >> fYnow;
+      finL.close();
+      fCellNow = WhereAmI();
+    }
+    std::ofstream foutL( Form("%sLast.log",sPath.Data()));
+    foutL << fXnow << " " << fYnow << " " << fCellnow.Data() << std::endl;
+    foutL.close();
+    //std::cout << "done..." << std::endl;
   }
-  fXnow = fDXnow = xmicrons/1000.0;
-  fYnow = fDYnow = ymicrons/1000.0;
-  std::ofstream foutL( Form("%sLast.log",sPath.Data()));
-  foutL << fXnow << " " << fYnow << std::endl;
-  foutL.close();
   /*
   static int every = 0;
   if(every>50) {
@@ -611,11 +620,6 @@ void XYTable::CreateTab2(TGCompositeFrame *tthis) {
 }
 //====================
 XYTable::XYTable(TApplication *app, UInt_t w, UInt_t h) : TGMainFrame(gClient->GetRoot(), w, h) {
-
-  fMotor = new Velmex(devVelmex.Data());
-  fMotor->Connect();
-  fMotor->SetStepsPerMilimiter(kMotorY,1259.1736);//motorY 1259.1736
-  fMotor->SetStepsPerMilimiter(kMotorX,126.1402); //motorX 126.1402
   fApp = app;
   sPath = "./Position_Data/";
   fCanvasMap = NULL;
@@ -625,14 +629,31 @@ XYTable::XYTable(TApplication *app, UInt_t w, UInt_t h) : TGMainFrame(gClient->G
   fGTXobj = NULL;
   fGTYobj = NULL;
 
+  // ==== CONECTING DEVICES
+  fMotor = new Velmex(devVelmex.Data());
+  fSPMX = 126.1402;
+  fSPMY = 1259.1736;
+  if(fMotor->Error()) {
+    std::cout << "Velmex not plugged. Moving to remote control." << std::endl;
+    delete fMotor;
+    fMotor = NULL;
+  } else {
+    fMotor->Connect();
+    fMotor->SetStepsPerMilimiter(kMotorY,fSPMY);//motorY 1259.1736;
+    fMotor->SetStepsPerMilimiter(kMotorX,fSPMX); //motorX 126.1402;
+  }
   fEncoder = new Mitutoyo(devMitutoyo.Data());
-  
+  if(fEncoder->Error()) {
+    std::cout << "Mitutoyo not plugged. Moving to remote control." << std::endl;
+    delete fEncoder;
+    fEncoder = NULL;
+  }
+
   gClient->GetColorByName("blue", fPixelBlue);
   gClient->GetColorByName("white",fPixelWhite);
   gClient->GetColorByName("red",  fPixelRed);
   gClient->GetColorByName("black",fPixelBlack);
   gClient->GetColorByName("green",fPixelGreen);
-
   for(int r=0; r!=10; ++r)
     for(int c=0; c!=19; ++c) {
       fPreLoaded[r][c][0] = -45 + 5*c;
@@ -651,13 +672,12 @@ XYTable::XYTable(TApplication *app, UInt_t w, UInt_t h) : TGMainFrame(gClient->G
   fYnow = fYobj = fYmust;
   finL.close();
   fLock = kFALSE;
-
   
   TGTab *tabcontainer = new TGTab(this,96,26);
   TGCompositeFrame *tab1 = tabcontainer->AddTab("Master Controler");
   CreateTab1(tab1);
-  TGCompositeFrame *tab2 = tabcontainer->AddTab("Calibration");
-  CreateTab2(tab2);
+  //TGCompositeFrame *tab2 = tabcontainer->AddTab("Calibration");
+  //CreateTab2(tab2);
   tabcontainer->SetTab(0);
   AddFrame(tabcontainer, new TGLayoutHints(kLHintsTop | kLHintsExpandX,2,2,2,2));
 
@@ -684,6 +704,7 @@ XYTable::~XYTable() {
   Cleanup();
   fCallReadPositions->TurnOff();
   if(fMotor) delete fMotor;
+  if(fEncoder) delete fEncoder;
   fApp->Terminate();
 }
 //====================

@@ -23,11 +23,14 @@
 const Int_t kNumberOfChannels=26;
 const Int_t kNumberOfBoards=8;
 const Int_t kNumberOfSamples=256;
-const Int_t kMergeRefresh=1000; // noevents
-const Int_t kNewEventRefresh=100; // noevents
+//const Int_t kMergeRefresh=1000; // noevents
+//const Int_t kNewEventRefresh=100; // noevents
+const Int_t kMergeRefresh=50; // noevents
+const Int_t kNewEventRefresh=10; // noevents
 
 class DataMonitor {
  private:
+  void CreateScans(TGCompositeFrame *mf);
   void CreateDisplayConfiguration(TGCompositeFrame *mf);
   void CreateChannels(TGCompositeFrame *mf);
   void CreateSignals(TGCompositeFrame *mf);
@@ -35,7 +38,7 @@ class DataMonitor {
   void CreateWidths(TGCompositeFrame *mf);
   void CreateHitSummary(TGCompositeFrame *mf);
   void CreateTimeSummary(TGCompositeFrame *mf);
-  MappingPlane* GetMappingPlane(Int_t bd, TString sp, Int_t pl=0);
+  const MappingPlane* GetMappingPlane(Int_t bd, TString sp, Int_t pl=0);
   void ReadPosition();
   void ReadConfig();
   void ConfigureChannels();
@@ -57,11 +60,13 @@ class DataMonitor {
   TCanvas *fCanvasMapHS;
   TCanvas *fCanvasMapTS;
   TCanvas *fCanvasMapCF;
+  TCanvas *fCanvasMapSC;
   TGMainFrame *fWindowHitSummary;
   TGMainFrame *fWindowTimeSummary;
   TGMainFrame *fWindowDetails;
   TGTextEdit *fConfigurationFile;
   MappingTableCollection *fMapCollection;
+  TH2D *fScan[kNumberOfBoards];
   
   TTimer *fRefresh;
   Double_t fPedestals[kNumberOfBoards][kNumberOfChannels];
@@ -84,7 +89,8 @@ class DataMonitor {
   DataMonitor(TApplication *app, UInt_t w, UInt_t h);
   virtual ~DataMonitor();
   void RefreshAll();
-  TH1D *GetChannel(int b, int s) {return fChannel[b][s];}
+  TH1D* GetChannel(int b, int s) {return fChannel[b][s];}
+  TH2D* GetScan(int b) {return fScan[b];}
   void NewRun(Int_t run);
   void NewEvent(Int_t evr);
   void Merge();

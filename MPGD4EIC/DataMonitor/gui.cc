@@ -2,11 +2,13 @@
 #include <pmonitor/pmonitor.h>
 #include "DataMonitor.h"
 #include <TH1D.h>
+#include <TH2D.h>
 #include <TMath.h>
 #include <TRandom3.h>
 
 DataMonitor *gDM;
 TH1D *gHist1D;
+TH2D *gHist2D;
 Int_t gCurrentRun;
 Bool_t gTOYMODEL=false;
 
@@ -18,7 +20,7 @@ void FillRandom(Double_t idx) {
   Double_t mod = TMath::Gaus(idx,0,5.0);
   Double_t hei = gRandom->Gaus( 3000, 300 );
   for(int i=0; i!=256; ++i) {
-    Double_t adc = mod*hei*TMath::Landau(0.5+i,mpv,sig) + 50*ped;
+    Double_t adc = mod*hei*TMath::Landau(0.5+i,mpv,sig);// + 50*ped;
     gHist1D->SetBinContent( i+1, adc );
   }
 }
@@ -28,7 +30,7 @@ int pinit() {
 }
 //======================
 int process_event (Event * e) {
-  //std::cout << " [pmonitor::process_event called" << std::endl;
+  std::cout << " [pmonitor::process_event called" << std::endl;
   Int_t run = e->getRunNumber();
   if(gCurrentRun!=run) {
     gDM->NewRun(run);
@@ -54,12 +56,26 @@ int process_event (Event * e) {
       for(int feu=0; feu!=1; ++feu) {
 	Int_t feuid = p->iValue(feu, "FEU_ID");
 	Int_t samples =  p->iValue(p->iValue(feu, "FEU_ID"), "SAMPLES");
-	std::cout << " Reading FEU ID " << feuid << " which has " << samples << " samples." <<  std::endl;
-	for(int ch=0; ch!=512/*8x64*/; ++ch) {
-	  if(ch>26) continue;
+	//for(int ch=0; ch!=512/*8x64*/; ++ch) {
+	/*
+	for(int ch=0; ch!=512; ++ch) {
+          gHist2D = gDM->GetScan(feu);
 	  for(int sa=0; sa!=samples; ++sa) {
 	    Int_t adc = p->iValue( feuid, ch, sa);
-	    //gHist1D->SetBinContent( sa+1, double(adc) );
+	    gHist2D->Fill( double(ch), double(sa),  double(adc) );
+	  }	  
+	}
+      */
+	//std::cout << " Reading FEU ID " << feuid << " which has " << samples << " samples." <<  std::endl;
+	int nch = gDM->GetDREAMChannels(feu);
+	int minch = gDM->GetDREAMChannel(feu,0);
+	int maxch = minch + nch;
+	//std::cout << " Listening to " << minch << "--" << maxch << std::endl;
+	for(int ch=minch; ch!=maxch; ++ch) {
+	  gHist1D = gDM->GetChannel(feu,ch-minch);
+	  for(int sa=0; sa!=samples; ++sa) {
+	    Int_t adc = p->iValue( feuid, ch, sa);
+	    gHist1D->SetBinContent( sa+1, double(adc) );
 	    //std::cout << adc << "|";
 	  }
 	}

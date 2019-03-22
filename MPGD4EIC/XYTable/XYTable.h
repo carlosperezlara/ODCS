@@ -57,7 +57,6 @@ class XYTable : public TGMainFrame {
   Double_t fDYmust;
   Double_t fSPMX;
   Double_t fSPMY;
-
   
   TCanvas *fCanvasMap;
   TCanvas *fCanvasImg;
@@ -87,6 +86,7 @@ class XYTable : public TGMainFrame {
   void CreateEyes(TGCompositeFrame*);
   void CreatePlot(TGCompositeFrame*);
   void CreateMotorInspection(TGCompositeFrame*);
+  TString WhereAmI();
   void Look(Bool_t val=true) {Log( val?"Locked":"Unlocked"); fLock=val;}
   void Log(TString val);
   

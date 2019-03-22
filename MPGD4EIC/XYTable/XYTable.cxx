@@ -32,7 +32,7 @@ const int kMotorX=1;
 const int kMotorY=2;
 const TString devVelmex="/dev/ttyUSB0";
 const TString devMitutoyo="/dev/ttyUSB1";
-const bool _TURN_ON_READER_ = false;
+const bool _TURN_ON_READER_ = true;
 
 void XYTable::CreateControl(TGCompositeFrame *mf) {
   TGTab *tabcontainer = new TGTab(mf,96,26);
@@ -482,16 +482,32 @@ void XYTable::MoveXY() {
     fMotor->MoveRelative(kMotorX,-1*(fXmust-fXnow),kMotorY,fYmust-fYnow);
   } else {
     fCallReadPositions->TurnOn();
-    LoopMove();
+    //LoopMove();
   }
   PrepareMove();
   fCallBusy->TurnOn();
   fCallReadPositions->TurnOn();
 }
 //====================
-void XYTable::ReadBusy() {
+TString XYTable::WhereAmI() {
+  TString cell = "A0";
+
+  // Slot connected to the Clicked() signal.
+  char cellstr[10] = {'A','B','C','D','E',
+		      'F','G','H','I','J'};
+  int xx = fDXnow + 50;
+  int yy = fDYnow + 50;
+  if(xx<0) xx=0;
+  if(yy<0) yy=0;
+  xx = xx/10;
+  yy = yy/10;
+  if(xx>9) xx=9;
+  if(yy>9) yy=9;
+  //std::cout << xx << " " << yy << std::endl;
+  cell = Form("%c%d",cellstr[xx],yy);
+  return cell;
 }
-  //====================
+//====================
 void XYTable::ReadBusy() {
   std::cout << "ReadBusy active" << std::endl;
   if(fXmust==fXnow&&fYmust==fYnow) {
@@ -503,21 +519,35 @@ void XYTable::ReadPositions() {
   //HERE WE READ FROM SCALER
   Int_t xmicrons = (fXnow = fDXnow = fXmust)*1000;
   Int_t ymicrons = (fYnow = fDYnow = fYmust)*1000;
+  double motx=0;
+  double moty=0;
   if(_TURN_ON_READER_) {
     //std::cout << "querying enconder..." << std::endl;
+    TString fCellNow;
     if(fEncoder) {
       fEncoder->ReadXY(xmicrons,ymicrons);
       fXnow = fDXnow = xmicrons/1000.0;
       fYnow = fDYnow = ymicrons/1000.0;
     } else {
-      gSystem->Exec( Form("getpos > %sencquery.tmp",sPath.Data()) );
-      std::ifstream finL( Form("%sencquery.tmp",sPath.Data()));
-      fin >> fXnow >> fYnow;
+      std::ifstream finL;
+      gSystem->Exec( Form("getpos > %sencquery1.tmp",sPath.Data()) );
+      finL.open( Form("%sencquery1.tmp",sPath.Data()));
+      finL >> fDXnow >> fDYnow;
       finL.close();
-      fCellNow = WhereAmI();
+      gSystem->Exec( Form("motor pos > %sencquery2.tmp",sPath.Data()) );
+      finL.open( Form("%sencquery2.tmp",sPath.Data()));
+      finL >> motx >> moty;
+      finL.close();
+      fXnow = fDXnow;
+      fYnow = fDYnow;
+      //std::cout << "I read " << fDXnow << " " << fDYnow << std::endl;
+      finL.close();
     }
+    fCellNow = WhereAmI();
     std::ofstream foutL( Form("%sLast.log",sPath.Data()));
-    foutL << fXnow << " " << fYnow << " " << fCellnow.Data() << std::endl;
+    foutL << fCellNow.Data() << " " << fDXnow << " " << fDYnow << " ";
+    foutL << motx << " " << moty << " ";
+    foutL << fSPMX << " " << fSPMY << std::endl;
     foutL.close();
     //std::cout << "done..." << std::endl;
   }
@@ -663,7 +693,8 @@ XYTable::XYTable(TApplication *app, UInt_t w, UInt_t h) : TGMainFrame(gClient->G
   fXmust = fYmust = 0;
   std::ifstream finL( Form("%sLast.log",sPath.Data()));
   int xx, yy;
-  finL >> xx >> yy;
+  TString atmp;
+  finL >> atmp >> xx >> yy;
   if(finL.good()) {
     fXmust = xx;
     fYmust = yy;
@@ -690,7 +721,7 @@ XYTable::XYTable(TApplication *app, UInt_t w, UInt_t h) : TGMainFrame(gClient->G
 
   fCallReadPositions = new TTimer();
   fCallReadPositions->Connect("Timeout()", "XYTable", this, "ReadPositions()");
-  fCallReadPositions->Start(100, kFALSE);
+  fCallReadPositions->Start(2000, kFALSE);
 
   fCallBusy = new TTimer();
   fCallBusy->Connect("Timeout()", "XYTable", this, "ReadBusy()");

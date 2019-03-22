@@ -14,6 +14,7 @@
 #include <TSystem.h>
 #include <TString.h>
 #include <TCanvas.h>
+#include <TFile.h>
 #include <TGraph.h>
 #include <TTimer.h>
 #include <TH1D.h>
@@ -25,6 +26,8 @@
 
 #include <fstream>
 #include <iostream>
+#include <vector>
+#include <utility>
 
 #include "DataMonitor.h"
 #include "mapping/MappingTableCollection.h"
@@ -33,13 +36,11 @@ ClassImp(DataMonitor);
 
 //====================
 void DataMonitor::Merge() {
-  //fRefresh->TurnOff();
+  std::vector<std::pair<unsigned, unsigned> > myclusters;
   for(int i=0; i!=kNumberOfBoards; ++i) {
-    //fTimeSummaryTemp->Reset();
-    for(int j=0; j!=kNumberOfChannels; ++j) {
+    for(int j=0; j!=fDREAMChannels[i]; ++j) {
       Double_t hei = fChannel[i][j]->GetMaximum() - fPedestals[i][j];
       fHeight[i][j]->Fill( hei );
-      //fTimeSummaryTemp->Add( fChannel[i][j], sum );
       Double_t sum = fChannel[i][j]->Integral() -kNumberOfSamples*fPedestals[i][j];
       fWidth[i][j]->Fill( sum );
       for(int b=0; b!=fChannel[i][j]->GetXaxis()->GetNbins(); ++b) {
@@ -48,13 +49,13 @@ void DataMonitor::Merge() {
 	fSignal[i][j]->Fill(xc,yc,hei);
 	fTimeSummary[i]->Fill(double(b), yc );
       }
-      fHitSummary[i]->Fill(double(j),sum);
-    }
+      fHitSummary[i]->Fill(double(j-fDREAMChannels[i]/2),sum);
+      myclusters.push_back( std::make_pair( fDREAMChannel[i][j], sum ) );
+    }    
   }
   if(fNoEventsSampled%kMergeRefresh==0) {
     RefreshAll();
   }
-  //fRefresh->TurnOn();
 }
 //====================
 void DataMonitor::StampRun(TGCompositeFrame *mf) {
@@ -82,6 +83,9 @@ void DataMonitor::NewRun(Int_t run) {
     }
   }
   fNoEventsSampled = 0;
+  ReadPosition();
+  ReadConfig();
+  ConfigureChannels();
 }
 //====================
 void DataMonitor::NewEvent(Int_t evr) {
@@ -137,8 +141,17 @@ void DataMonitor::CreateChannels(TGCompositeFrame *mf) {
   fCanvasMap->SetEditable(kFALSE);
 }
 //====================
-void DataMonitor::ReadConfig(TString sfile) {
-  std::ifstream fin( sfile.Data() );
+void DataMonitor::ReadPosition() {
+  std::ifstream fin("./Position_Data/Last.log");
+  fin >> fPosX;
+  fin >> fPosY;
+  fin >> fClosestCell;
+  fin.close();
+  std::cout << " * Position Read: " << fPosX << " " << fPosY << " " << fClosestCell.Data() << std::endl;
+}
+//====================
+void DataMonitor::ReadConfig() {
+  std::ifstream fin( "./Aquarium_Data/AquaConf.txt" );
   TString tmp;
   for(;;) {
     fin >> tmp;
@@ -161,20 +174,47 @@ void DataMonitor::ReadConfig(TString sfile) {
     std::cout << " | " << i << " " << fBoardCode[i] << " " << fBoardTech[i];
   }
   std::cout << std::endl;
-  for(int i=0; i!=kNumberOfBoards; ++i) {
-    for(int j=0; j!=kNumberOfChannels; ++j) {
-      fPitchX[i][j] = 1;
-      fPeriodY[i][j] = 1;
-      fStretch[i][j] = 1;
+}
+//====================
+void DataMonitor::ConfigureChannels() {
+  for(int bd=0; bd!=kNumberOfBoards; ++bd) {
+    const MappingPlane *mplane = GetMappingPlane(bd, fClosestCell.Data());
+    fDREAMChannels[bd] = mplane->GetStripCount();
+    if(fDREAMChannels[bd]>kNumberOfChannels) {
+      std::cout << "NO NO " << fDREAMChannels[bd] << " " << kNumberOfChannels << std::endl;
+      std::cout << "at board " << bd << std::endl;
+      exit(0);
+    }
+    for(int ch=0; ch!=fDREAMChannels[bd]; ++ch) {
+      fDREAMChannel[bd][ch] = mplane->GetDreamChannel(ch);
+      fPitchX[bd][ch] = mplane->GetPitch();
+      fPeriodY[bd][ch] = 1;
+      fStretch[bd][ch] = 1;
     }
   }
+}
+//====================
+const MappingPlane* DataMonitor::GetMappingPlane(Int_t bd, TString sp, Int_t pl) {
+  MappingTable *mtable = NULL;
+  mtable = fMapCollection->GetMappingTable( fBoardCode[bd].Data()  );
+  if(!mtable) {
+    std::cout << " Could not find board code " << fBoardCode[bd].Data() << " in collection. abort" << std::endl;
+    exit(0);
+  }
+  MappingSpot *mspot = NULL;
+  mspot = mtable->GetMappingSpot(sp.Data()); assert(mspot);
+  if(!mspot) {
+    std::cout << " Could not find cell code " << sp.Data() << " in table. abort" << std::endl;
+    exit(0);
+  }
+  return mspot->GetMappingPlane(pl);
 }
 //====================
 void DataMonitor::ModelPads(Int_t bd) {
   double x[100];
   double y[100];
   double gx = 0;
-  for(int str=0; str!=kNumberOfChannels; ++str) {
+  for(int str=0; str!=fDREAMChannels[bd]; ++str) {
     double xp = fPitchX[bd][str];
     double wd = 0.8*xp;
     double yp = fPeriodY[bd][str];
@@ -323,7 +363,6 @@ void DataMonitor::CreateTimeSummary(TGCompositeFrame *mf) {
 //====================
 void DataMonitor::RefreshAll() {
   //std::cout << "  >> RefreshAll called" << std::endl;
-  //fRefresh->TurnOff();
   if(fTabContainer->GetCurrent()==1&&fCanvasMap) {
     //std::cout << "   current canvas 1" << std::endl;
     fCanvasMap->SetEditable(kTRUE);
@@ -369,30 +408,26 @@ void DataMonitor::RefreshAll() {
     fCanvasMapW->SetEditable(kFALSE);
   }
 
-  //if(fTabContainer->GetCurrent()==4&&fCanvasMapHS) {
   //std::cout << "   current canvas 4" << std::endl;
-    fCanvasMapHS->SetEditable(kTRUE);
-    for(int i=0; i!=kNumberOfBoards; ++i) {
-      fCanvasMapHS->cd(i+1)->Modified();
-      fCanvasMapHS->cd(i+1)->Update();
-    }
-    fCanvasMapHS->Modified();
-    fCanvasMapHS->Update();
-    fCanvasMapHS->SetEditable(kFALSE);
-    //}
-    //if(fTabContainer->GetCurrent()==5&&fCanvasMapTS) {
-    //std::cout << "   current canvas 5" << std::endl;
-    fCanvasMapTS->SetEditable(kTRUE);
-    for(int i=0; i!=kNumberOfBoards; ++i) {
-      fCanvasMapTS->cd(i+1)->Modified();
-      fCanvasMapTS->cd(i+1)->Update();
-    }
-    fCanvasMapTS->Modified();
-    fCanvasMapTS->Update();
-    fCanvasMapTS->SetEditable(kFALSE);
-    //}
-    //std::cout << "  << RefreshAll called" << std::endl;
-  //fRefresh->TurnOn();
+  fCanvasMapHS->SetEditable(kTRUE);
+  for(int i=0; i!=kNumberOfBoards; ++i) {
+    fCanvasMapHS->cd(i+1)->Modified();
+    fCanvasMapHS->cd(i+1)->Update();
+  }
+  fCanvasMapHS->Modified();
+  fCanvasMapHS->Update();
+  fCanvasMapHS->SetEditable(kFALSE);
+  //if(fTabContainer->GetCurrent()==5&&fCanvasMapTS) {
+  //std::cout << "   current canvas 5" << std::endl;
+  fCanvasMapTS->SetEditable(kTRUE);
+  for(int i=0; i!=kNumberOfBoards; ++i) {
+    fCanvasMapTS->cd(i+1)->Modified();
+    fCanvasMapTS->cd(i+1)->Update();
+  }
+  fCanvasMapTS->Modified();
+  fCanvasMapTS->Update();
+  fCanvasMapTS->SetEditable(kFALSE);
+  //std::cout << "  << RefreshAll called" << std::endl;
 }
 //====================
 DataMonitor::DataMonitor(TApplication *app, UInt_t w, UInt_t h) {
@@ -400,13 +435,31 @@ DataMonitor::DataMonitor(TApplication *app, UInt_t w, UInt_t h) {
   fApp = app;
   gStyle->SetTitleFontSize(0.1);
   fNoEventsSampled = 0;
-  TString sConfFile = "./Aquarium_Data/AquaConf.txt";
-  ReadConfig(sConfFile);
+
+  //====== MAPCOLLECTION
+  fMapCollection = new MappingTableCollection();
+  {
+    const char *mfiles[] = {"./Run_Data/B00e.root", "./Run_Data/Z03k.A.root"};
+    for(unsigned i=0; i<sizeof(mfiles)/sizeof(mfiles[0]); i++) {
+      TFile *ff = new TFile(mfiles[i]);
+      MappingTable *mtable = (MappingTable*)ff->Get("MappingTable"); assert(mtable);
+      //printf("\n  %s\n", mtable->GetTag().Data());
+      fMapCollection->AddMappingTable(mtable);
+    }
+  }
+  fMapCollection->CreateLookupTables();
+  ReadPosition();
+  ReadConfig();
+  ConfigureChannels();
+
+  //====== HISTOGRAMS
   fTimeSummaryTemp = new TH1D( "TST","TST",kNumberOfSamples,-0.5,kNumberOfSamples-0.5);
   for(int i=0; i!=kNumberOfBoards; ++i) {
     fDiagrams[i] = new TH2Poly( Form("BD%d",i), Form("BD%d;X [mm];Y [mm]",i), 0,30,0,10);
     fDiagrams[i]->SetStats(0);
-    fHitSummary[i] = new TH1D( Form("HS%d",i),Form("HS%d;chn  idx;counts",i),kNumberOfChannels,-0.5,kNumberOfChannels-0.5);
+    int st = -kNumberOfChannels/2;
+    fHitSummary[i] = new TH1D( Form("HS%d",i),Form("HS%d;chn  idx;counts",i),kNumberOfChannels,
+			       st-0.5,st+kNumberOfChannels-0.5);
     fHitSummary[i]->SetFillColor(kBlue-3);
     fHitSummary[i]->SetLineColor(kBlue-3);
     fHitSummary[i]->SetStats(1);
@@ -462,10 +515,8 @@ DataMonitor::DataMonitor(TApplication *app, UInt_t w, UInt_t h) {
   fThisEvent = -1;
   fEventsReaded = 0;
   fEventsCataloged = 0;
-  fClosestCell = "XX";
-  fPosX = 0;
-  fPosY = 0;
 
+  //====== WINDOWS
   fWindowHitSummary = new TGMainFrame(gClient->GetRoot(), 950, 1050);
   fWindowHitSummary->SetWindowName("On-the-fly Cluster Reconstruction");
   fWindowHitSummary->SetWMPosition(2000,0);
@@ -519,22 +570,15 @@ DataMonitor::DataMonitor(TApplication *app, UInt_t w, UInt_t h) {
   fWindowTimeSummary->Move(1500,0);
 
 
-  //TGCompositeFrame *tab5 = fTabContainer->AddTab("Hit Summary");
-  //TGCompositeFrame *tab6 = fTabContainer->AddTab("Time Summary");
   fTabContainer->SetTab(0);
 
-
-  //std::cout << "DM: All windows are ready now. I will start updating every " << kLoopTime/1000.0 << " seconds. " << std::endl;
-
-  //fRefresh = new TTimer();
-  //fRefresh->Connect("Timeout()", "DataMonitor", this, "RefreshAll()");
-  //fRefresh->Start(kLoopTime, kFALSE);
+  RefreshAll();
+  std::cout << " DM: Please wait few seconds. Starting engine..." << std::endl;
 }
 //====================
 DataMonitor::~DataMonitor() {
   fWindowDetails->Cleanup();
   fWindowHitSummary->Cleanup();
   fWindowTimeSummary->Cleanup();
-  //fRefresh->TurnOff();
   fApp->Terminate();
 }

@@ -10,6 +10,7 @@
 #include <TGNumberEntry.h>
 #include <TGIcon.h>
 
+#include "mapping/MappingTableCollection.h"
 #include <TH1D.h>
 #include <TH2Poly.h>
 #include <TProfile.h>
@@ -34,7 +35,10 @@ class DataMonitor {
   void CreateWidths(TGCompositeFrame *mf);
   void CreateHitSummary(TGCompositeFrame *mf);
   void CreateTimeSummary(TGCompositeFrame *mf);
-  void ReadConfig(TString);
+  const MappingPlane* GetMappingPlane(Int_t bd, TString sp, Int_t pl=0);
+  void ReadPosition();
+  void ReadConfig();
+  void ConfigureChannels();
   void StampRun(TGCompositeFrame *mf);
   void ModelPads(Int_t bd);
   TApplication *fApp;
@@ -57,6 +61,7 @@ class DataMonitor {
   TGMainFrame *fWindowTimeSummary;
   TGMainFrame *fWindowDetails;
   TGTextEdit *fConfigurationFile;
+  MappingTableCollection *fMapCollection;
   
   TTimer *fRefresh;
   Double_t fPedestals[kNumberOfBoards][kNumberOfChannels];
@@ -72,7 +77,9 @@ class DataMonitor {
   Double_t fPitchX[kNumberOfBoards][kNumberOfChannels];
   Double_t fPeriodY[kNumberOfBoards][kNumberOfChannels];
   Double_t fStretch[kNumberOfBoards][kNumberOfChannels];
-
+  Int_t fDREAMChannels[kNumberOfBoards];
+  Int_t fDREAMChannel[kNumberOfBoards][kNumberOfChannels];
+  
  public:
   DataMonitor(TApplication *app, UInt_t w, UInt_t h);
   virtual ~DataMonitor();
@@ -81,6 +88,10 @@ class DataMonitor {
   void NewRun(Int_t run);
   void NewEvent(Int_t evr);
   void Merge();
+  void SetDREAMChannel(Int_t bd,Int_t ch, Int_t idx) {fDREAMChannel[bd][ch] = idx;}
+  Int_t GetDREAMChannels(Int_t bd) {return fDREAMChannels[bd];}
+  Int_t GetDREAMChannel(Int_t bd,Int_t ch) {return fDREAMChannel[bd][ch];}
+
   TGLabel *fThisRun;
   TGLabel *fEventsSampled;
   TGLabel *fSamplingFraction;

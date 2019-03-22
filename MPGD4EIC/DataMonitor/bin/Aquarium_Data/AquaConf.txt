@@ -1,0 +1,4 @@
+#GAS  ArCO27030
+#BOARDS B00e Z03k.A B00e Z03k.A B00e Z03k.A B00e Z03k.A
+#TECH   GEM  GEM    MM   MM     MM   MM     URW  DP
+

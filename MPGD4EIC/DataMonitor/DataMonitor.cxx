@@ -36,7 +36,7 @@ ClassImp(DataMonitor);
 
 //====================
 void DataMonitor::Merge() {
-  std::vector<std::pair<unsigned, unsigned> > myclusters;
+  std::vector<std::pair<unsigned, unsigned> > myhits;
   for(int i=0; i!=kNumberOfBoards; ++i) {
     for(int j=0; j!=fDREAMChannels[i]; ++j) {
       Double_t hei = fChannel[i][j]->GetMaximum() - fPedestals[i][j];
@@ -50,8 +50,31 @@ void DataMonitor::Merge() {
 	fTimeSummary[i]->Fill(double(b), yc );
       }
       fHitSummary[i]->Fill(double(j-fDREAMChannels[i]/2),sum);
-      myclusters.push_back( std::make_pair( fDREAMChannel[i][j], sum ) );
-    }    
+      myhits.push_back( std::make_pair( fDREAMChannel[i][j], sum ) );
+    }
+    std::cout << " myhits " << myhits.size() << " || ";
+    /*
+    for(unsigned i=0; i!=myhits.size(); ++i) {
+      std::cout << myhits[i].first << " ";
+      std::cout << myhits[i].second << " ";
+      std::cout << " || ";
+    }
+    */
+    std::cout << std::endl;
+    
+    MappingPlane *mplane = GetMappingPlane(i, fClosestCell.Data());
+    std::vector<Cluster> myclusters = mplane->GetClusters( myhits );
+      
+    /*
+    std::cout << "  myclusters " << myclusters.size() << " || ";
+    for(unsigned i=0; i!=myclusters.size(); ++i) {
+      std::cout << myclusters[i].mWidth << " ";
+      std::cout << myclusters[i].mAmplitude << " ";
+      std::cout << myclusters[i].mCentroid << " ";
+      std::cout << " || ";
+    }
+	std::cout << std::endl;
+    */
   }
   if(fNoEventsSampled%kMergeRefresh==0) {
     RefreshAll();
@@ -178,7 +201,7 @@ void DataMonitor::ReadConfig() {
 //====================
 void DataMonitor::ConfigureChannels() {
   for(int bd=0; bd!=kNumberOfBoards; ++bd) {
-    const MappingPlane *mplane = GetMappingPlane(bd, fClosestCell.Data());
+     MappingPlane *mplane = GetMappingPlane(bd, fClosestCell.Data());
     fDREAMChannels[bd] = mplane->GetStripCount();
     if(fDREAMChannels[bd]>kNumberOfChannels) {
       std::cout << "NO NO " << fDREAMChannels[bd] << " " << kNumberOfChannels << std::endl;
@@ -197,7 +220,7 @@ void DataMonitor::ConfigureChannels() {
   }
 }
 //====================
-const MappingPlane* DataMonitor::GetMappingPlane(Int_t bd, TString sp, Int_t pl) {
+ MappingPlane* DataMonitor::GetMappingPlane(Int_t bd, TString sp, Int_t pl) {
   MappingTable *mtable = NULL;
   mtable = fMapCollection->GetMappingTable( fBoardCode[bd].Data()  );
   if(!mtable) {
@@ -572,7 +595,6 @@ DataMonitor::DataMonitor(TApplication *app, UInt_t w, UInt_t h) {
   fWindowTimeSummary->Layout();
   fWindowTimeSummary->MapWindow();
   fWindowTimeSummary->Move(1500,0);
-
 
   fTabContainer->SetTab(0);
 

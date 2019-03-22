@@ -35,7 +35,7 @@ class DataMonitor {
   void CreateWidths(TGCompositeFrame *mf);
   void CreateHitSummary(TGCompositeFrame *mf);
   void CreateTimeSummary(TGCompositeFrame *mf);
-  const MappingPlane* GetMappingPlane(Int_t bd, TString sp, Int_t pl=0);
+  MappingPlane* GetMappingPlane(Int_t bd, TString sp, Int_t pl=0);
   void ReadPosition();
   void ReadConfig();
   void ConfigureChannels();

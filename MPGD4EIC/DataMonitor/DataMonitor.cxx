@@ -29,8 +29,8 @@
 #include <vector>
 #include <utility>
 
+#include <MappingTableCollection.h>
 #include "DataMonitor.h"
-#include "mapping/MappingTableCollection.h"
 
 ClassImp(DataMonitor);
 
@@ -455,7 +455,8 @@ DataMonitor::DataMonitor(TApplication *app, UInt_t w, UInt_t h) {
   //====== HISTOGRAMS
   fTimeSummaryTemp = new TH1D( "TST","TST",kNumberOfSamples,-0.5,kNumberOfSamples-0.5);
   for(int i=0; i!=kNumberOfBoards; ++i) {
-    fDiagrams[i] = new TH2Poly( Form("BD%d",i), Form("BD%d;X [mm];Y [mm]",i), 0,30,0,10);
+    std::cout << "ConfiguringX" << std::endl;
+    fDiagrams[i] = new TH2Poly( Form("BD%d",i), Form("BD%d;X [mm];Y [mm]",i), 0,12,0,15);
     fDiagrams[i]->SetStats(0);
     int st = -kNumberOfChannels/2;
     fHitSummary[i] = new TH1D( Form("HS%d",i),Form("HS%d;chn  idx;counts",i),kNumberOfChannels,
@@ -518,6 +519,7 @@ DataMonitor::DataMonitor(TApplication *app, UInt_t w, UInt_t h) {
 
   //====== WINDOWS
   fWindowHitSummary = new TGMainFrame(gClient->GetRoot(), 950, 1050);
+  //fWindowHitSummary = new TGMainFrame(gClient->GetRoot(), 550, 550);
   fWindowHitSummary->SetWindowName("On-the-fly Cluster Reconstruction");
   fWindowHitSummary->SetWMPosition(2000,0);
   fTabContainer2 = new TGTab(fWindowHitSummary,96,26);

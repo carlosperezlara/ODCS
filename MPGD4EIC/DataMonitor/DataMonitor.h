@@ -10,7 +10,7 @@
 #include <TGNumberEntry.h>
 #include <TGIcon.h>
 
-#include "mapping/MappingTableCollection.h"
+#include <MappingTableCollection.h>
 #include <TH1D.h>
 #include <TH2Poly.h>
 #include <TProfile.h>

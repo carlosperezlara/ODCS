@@ -54,20 +54,16 @@ int process_event (Event * e) {
       for(int feu=0; feu!=1; ++feu) {
 	Int_t feuid = p->iValue(feu, "FEU_ID");
 	Int_t samples =  p->iValue(p->iValue(feu, "FEU_ID"), "SAMPLES");
-	//std::cout << " Reading FEU ID " << feuid << " which has " << samples << " samples." std::endl;
+	std::cout << " Reading FEU ID " << feuid << " which has " << samples << " samples." <<  std::endl;
 	for(int ch=0; ch!=512/*8x64*/; ++ch) {
+	  if(ch>26) continue;
 	  for(int sa=0; sa!=samples; ++sa) {
 	    Int_t adc = p->iValue( feuid, ch, sa);
-	    for(int i=0; i!=256; ++i) {
-	      Double_t adc = mod*hei*TMath::Landau(0.5+i,mpv,sig) + 50*ped;
-	      gHist1D->SetBinContent( i+1, adc );
-	    }
-	    
-
-	    std::cout << adc << "|";
+	    //gHist1D->SetBinContent( sa+1, double(adc) );
+	    //std::cout << adc << "|";
 	  }
 	}
-	std::cout << std::endl;
+	//std::cout << std::endl;
       }
     }
     delete p;

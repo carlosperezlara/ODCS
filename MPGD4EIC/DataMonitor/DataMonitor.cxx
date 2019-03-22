@@ -185,12 +185,15 @@ void DataMonitor::ConfigureChannels() {
       std::cout << "at board " << bd << std::endl;
       exit(0);
     }
+    std::cout << " Channels in board number " << bd << " : " << fDREAMChannels[bd] << std::endl;
     for(int ch=0; ch!=fDREAMChannels[bd]; ++ch) {
       fDREAMChannel[bd][ch] = mplane->GetDreamChannel(ch);
       fPitchX[bd][ch] = mplane->GetPitch();
       fPeriodY[bd][ch] = 1;
       fStretch[bd][ch] = 1;
+      std::cout << fDREAMChannel[bd][ch] << " ";
     }
+	std::cout << std::endl;
   }
 }
 //====================
@@ -455,8 +458,7 @@ DataMonitor::DataMonitor(TApplication *app, UInt_t w, UInt_t h) {
   //====== HISTOGRAMS
   fTimeSummaryTemp = new TH1D( "TST","TST",kNumberOfSamples,-0.5,kNumberOfSamples-0.5);
   for(int i=0; i!=kNumberOfBoards; ++i) {
-    std::cout << "ConfiguringX" << std::endl;
-    fDiagrams[i] = new TH2Poly( Form("BD%d",i), Form("BD%d;X [mm];Y [mm]",i), 0,12,0,15);
+    fDiagrams[i] = new TH2Poly( Form("BD%d",i), Form("BD%d;X [mm];Y [mm]",i), 0,13,0,12);
     fDiagrams[i]->SetStats(0);
     int st = -kNumberOfChannels/2;
     fHitSummary[i] = new TH1D( Form("HS%d",i),Form("HS%d;chn  idx;counts",i),kNumberOfChannels,

@@ -93,9 +93,9 @@ void DataMonitor::StampRun(TGCompositeFrame *mf) {
   mf->AddFrame(labs, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
   labs = new TGLabel(mf, Form("Closest Cell : %s", fClosestCell.Data()) );
   mf->AddFrame(labs, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
-  fEventsSampled = new TGLabel(mf, "Events sampled: 0.0k" );
+  fEventsSampled = new TGLabel(mf, "Events sampled: ---" );
   mf->AddFrame(fEventsSampled, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
-  fSamplingFraction = new TGLabel(mf, "Sampling fraction: 0.00" );
+  fSamplingFraction = new TGLabel(mf, "Sampling fraction: ----" );
   mf->AddFrame(fSamplingFraction, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
 }
 //====================

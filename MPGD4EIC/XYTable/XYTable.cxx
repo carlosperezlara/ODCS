@@ -30,10 +30,12 @@
 ClassImp(XYTable);
 const int kMotorX=1;
 const int kMotorY=2;
-const TString devVelmex="/dev/ttyUSB0";
-const TString devMitutoyo="/dev/ttyUSB1";
+const TString devVelmex="/dev/ttyUSB1110JUNK"; //leave insane values so that
+const TString devMitutoyo="/dev/ttyUSB1111JUNK"; //it does not attempt to ping
 const bool _TURN_ON_READER_ = true;
-const bool _TURN_ON_DRIVER_ = false;
+const bool _TURN_ON_DRIVER_ = true;
+const Double_t kPrecX = 0.1;
+const Double_t kPrecY = 0.01;
 
 void XYTable::CreateControl(TGCompositeFrame *mf) {
   TGTab *tabcontainer = new TGTab(mf,96,26);
@@ -459,8 +461,8 @@ void XYTable::MoveXY() {
 
   TTimeStamp timestamp;
   TString ts = timestamp.AsString("s");;
-  if(fXmust!=fXobj) {
-    fXmust = fXobj;
+  if( TMath::Abs( fDXmust-fXobj ) > kPrecX ) {
+    fDXmust = fXmust = fXobj;
     fGLXsta->SetText( " moving " );
     fGLXsta->SetForegroundColor(fPixelGreen);
     std::ofstream foutX( Form("%sPositionX.log",sPath.Data()),std::ofstream::out|std::ofstream::app);
@@ -469,8 +471,8 @@ void XYTable::MoveXY() {
     LoadLogX();
     //std::cout << "XXX" << fXmust-fXnow << std::endl;
   }
-  if(fYmust!=fYobj) {
-    fYmust = fYobj;
+  if( TMath::Abs( fDYmust-fYobj ) > kPrecY ) {
+    fDYmust = fYmust = fYobj;
     fGLYsta->SetText( " moving " );
     fGLYsta->SetForegroundColor(fPixelGreen);
     std::ofstream foutY( Form("%sPositionY.log",sPath.Data()),std::ofstream::out|std::ofstream::app);
@@ -482,11 +484,9 @@ void XYTable::MoveXY() {
   if(fMotor) {
     fMotor->MoveRelative(kMotorX,-1*(fXmust-fXnow),kMotorY,fYmust-fYnow);
   } else {
-    fCallReadPositions->TurnOn();
-    //LoopMove();
+    fCallBusy->TurnOn();
   }
   PrepareMove();
-  fCallBusy->TurnOn();
   fCallReadPositions->TurnOn();
 }
 //====================
@@ -510,9 +510,55 @@ TString XYTable::WhereAmI() {
 }
 //====================
 void XYTable::ReadBusy() {
-  std::cout << "ReadBusy active" << std::endl;
-  if(fXmust==fXnow&&fYmust==fYnow) {
+  static bool moving = false;
+  if(!moving) {
+    std::cout << "Moving operation start" << std::endl;
+    moving = true;
+  }
+  bool doneX = false;
+  bool doneY = false;
+  if(!fMotor) {
+    //std::cout << " I am here" << std::endl;
+    int motx1=1, motx2=2, moty1=1, moty2=2, err =0;
+    err = gSystem->Exec( Form("motor getpos > %smovequery1.tmp",sPath.Data()) );
+    if(err>0) return;
+    err = gSystem->Exec( Form("motor getpos > %smovequery2.tmp",sPath.Data()) );
+    if(err>0) return;
+    std::ifstream finL;
+    finL.open( Form("%smovequery1.tmp",sPath.Data()));
+    finL >> motx1 >> moty1;
+    finL.close();
+    finL.open( Form("%smovequery2.tmp",sPath.Data()));
+    finL >> motx2 >> moty2;
+    finL.close();
+    //std::cout << " " << motx1 << " " << motx2 << " " << moty1 << " " << moty2 << std::endl;
+    if(motx1!=motx2 || moty1!=moty2) { // still working leave me alone
+      std::cout << "Still working. Leave me alone." << std::endl;
+      return;
+    } else {
+      TString cmd;
+      if( TMath::Abs(fDXmust-fDXnow) > kPrecX  ) {
+	// issue a X move command
+	std::cout << "deltaX " << TMath::Abs(fDXmust-fDXnow) << std::endl;
+	cmd = Form("motor rmove_x %.0f", -(fDXmust-fDXnow)*fSPMX );
+	std::cout << cmd.Data() << std::endl;
+	//gSystem->Exec( cmd.Data() );
+	return; //and do no more for now
+      } else doneX = true;
+      if( TMath::Abs(fDYmust-fDYnow) > kPrecY ) {
+	// issue a Y move command
+	std::cout << "deltaY " << TMath::Abs(fDYmust-fDYnow) << std::endl;
+	cmd = Form("motor rmove_y %.0f", (fDYmust-fDYnow)*fSPMY );
+	std::cout << cmd.Data() << std::endl;
+	//gSystem->Exec( cmd.Data() );
+	return; //and do no more for now
+      } else doneY = true;
+    }
+  }
+  
+  if(doneX&&doneY) {
     fCallBusy->TurnOff();
+    std::cout << "Moving operation done" << std::endl;
   }
 }
 //====================
@@ -544,6 +590,13 @@ void XYTable::ReadPositions() {
       //std::cout << "I read " << fDXnow << " " << fDYnow << std::endl;
       finL.close();
     }
+    static bool first = true;
+    if(first){
+      //std::cout << "WTH" << std::endl;
+      fXmust = fXobj = fDXmust = fDXnow;
+      fYmust = fYobj = fDYmust = fDYnow;
+      first = false;
+    }
     fCellNow = WhereAmI();
     std::ofstream foutL( Form("%sLast.log",sPath.Data()));
     foutL << fCellNow.Data() << " " << fDXnow << " " << fDYnow << " ";
@@ -552,6 +605,7 @@ void XYTable::ReadPositions() {
     foutL.close();
     //std::cout << "done..." << std::endl;
   }
+  //std::cout << "Called" << std::endl;
   if(!_TURN_ON_DRIVER_) {
     fXmust = fXobj = fDXmust = fDXnow;
     fYmust = fYobj = fDYmust = fDYnow;
@@ -723,7 +777,8 @@ XYTable::XYTable(TApplication *app, UInt_t w, UInt_t h) : TGMainFrame(gClient->G
   MapSubwindows();
   Layout();
   MapWindow();
-
+  Move(0,4000);
+  
   fCallReadPositions = new TTimer();
   fCallReadPositions->Connect("Timeout()", "XYTable", this, "ReadPositions()");
   fCallReadPositions->Start(2000, kFALSE);

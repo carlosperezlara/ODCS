@@ -22,12 +22,12 @@
 
 const Int_t kNumberOfChannels=26;
 const Int_t kNumberOfBoards=8;
-const Int_t kNumberOfSamples=16;
+const Int_t kNumberOfSamples=32;
 //const Int_t kNumberOfSamples=256;
 //const Int_t kMergeRefresh=1000; // noevents
 //const Int_t kNewEventRefresh=100; // noevents
-const Int_t kMergeRefresh=10; // noevents
-const Int_t kNewEventRefresh=5; // noevents
+const Int_t kMergeRefresh=1000; // noevents
+const Int_t kNewEventRefresh=10; // noevents
 
 class DataMonitor {
  private:
@@ -99,7 +99,9 @@ class DataMonitor {
   void SetDREAMChannel(Int_t bd,Int_t ch, Int_t idx) {fDREAMChannel[bd][ch] = idx;}
   Int_t GetDREAMChannels(Int_t bd) {return fDREAMChannels[bd];}
   Int_t GetDREAMChannel(Int_t bd,Int_t ch) {return fDREAMChannel[bd][ch];}
+  Int_t IsBoardNotInstalled(Int_t bd) {return fNotInstalled[bd];}
 
+  
   TGLabel *fThisRun;
   TGLabel *fEventsSampled;
   TGLabel *fSamplingFraction;

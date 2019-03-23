@@ -24,6 +24,8 @@
 #include <TLatex.h>
 #include <TImage.h>
 
+#include <sstream>
+#include <string>
 #include <fstream>
 #include <iostream>
 #include <vector>
@@ -63,6 +65,7 @@ void DataMonitor::Merge() {
     //std::cout << std::endl;
     
     const MappingPlane *mplane = GetMappingPlane(i, fClosestCell.Data());
+    if(!mplane) continue;
     std::vector<Cluster> myclusters = mplane->GetClusters( myhits );
       
     /*
@@ -122,7 +125,7 @@ void DataMonitor::NewEvent(Int_t evr) {
   fNoEventsSampled += 1;
   static bool __up__ = false;
   if(fNoEventsSampled%kNewEventRefresh==0) {
-    TString tmp = Form("Events sampled : %.1fk",fNoEventsSampled*1e-3);
+    TString tmp = Form("Events sampled : %d",fNoEventsSampled);
     fEventsSampled->SetText( tmp.Data() );
     if(fThisEvent>100) {
       TString tmp = Form("Sampling fraction : %.3f",fNoEventsSampled/double(fThisEvent));
@@ -146,7 +149,8 @@ void DataMonitor::CreateChannels(TGCompositeFrame *mf) {
   fCanvasMap->SetLeftMargin(0.2);
   fCanvasMap->SetRightMargin(0.1);
   fCanvasMap->Divide(kNumberOfChannels,kNumberOfBoards,0,0);
-  TH2D *axis = new TH2D("axis","",100,-15,270,100,-50,1099);
+  //TH2D *axis = new TH2D("axis","",100,-15,270,100,-50,1099);
+  TH2D *axis = new TH2D("axis","",100,-kNumberOfSamples*0.1,kNumberOfSamples*1.1,100,-50,1099);
   axis->SetStats(0);
   axis->GetYaxis()->SetLabelSize(0.1);
   axis->GetXaxis()->SetLabelSize(0.1);
@@ -166,15 +170,16 @@ void DataMonitor::CreateChannels(TGCompositeFrame *mf) {
 //====================
 void DataMonitor::ReadPosition() {
   std::ifstream fin("./Position_Data/Last.log");
+  fin >> fClosestCell;
   fin >> fPosX;
   fin >> fPosY;
-  fin >> fClosestCell;
   fin.close();
   std::cout << " * Position Read: " << fPosX << " " << fPosY << " " << fClosestCell.Data() << std::endl;
 }
 //====================
 void DataMonitor::ReadConfig() {
   std::ifstream fin( "./Aquarium_Data/AquaConf.txt" );
+  /*
   TString tmp;
   for(;;) {
     fin >> tmp;
@@ -193,6 +198,19 @@ void DataMonitor::ReadConfig() {
       }
     }
   }
+  */
+  std::string line;
+  int n = -1;
+  for(;;) {
+    std::getline(fin,line);
+    std::istringstream iss(line);
+    TString tmp;
+    iss >> tmp;
+    n++;
+    if(n<1) continue; // ignoring first board label TO BE REMOVED
+    fBoardCode[n-1] = tmp;
+    if(n>9) break;
+  }
   for(int i=0; i!=kNumberOfBoards; ++i) {
     std::cout << " | " << i << " " << fBoardCode[i] << " " << fBoardTech[i];
   }
@@ -202,21 +220,22 @@ void DataMonitor::ReadConfig() {
 void DataMonitor::ConfigureChannels() {
   for(int bd=0; bd!=kNumberOfBoards; ++bd) {
     const MappingPlane *mplane = GetMappingPlane(bd, fClosestCell.Data());
+    if(!mplane) continue;
     fDREAMChannels[bd] = mplane->GetStripCount();
     if(fDREAMChannels[bd]>kNumberOfChannels) {
       std::cout << "NO NO " << fDREAMChannels[bd] << " " << kNumberOfChannels << std::endl;
       std::cout << "at board " << bd << std::endl;
       exit(0);
     }
-    std::cout << " Channels in board number " << bd << " : " << fDREAMChannels[bd] << std::endl;
+    //std::cout << " Channels in board number " << bd << " : " << fDREAMChannels[bd] << std::endl;
     for(int ch=0; ch!=fDREAMChannels[bd]; ++ch) {
       fDREAMChannel[bd][ch] = mplane->GetDreamChannel(ch);
       fPitchX[bd][ch] = mplane->GetPitch();
       fPeriodY[bd][ch] = 1;
       fStretch[bd][ch] = 1;
-      std::cout << fDREAMChannel[bd][ch] << " ";
+      //std::cout << fDREAMChannel[bd][ch] << " ";
     }
-	std::cout << std::endl;
+    //std::cout << std::endl;
   }
 }
 //====================
@@ -224,9 +243,11 @@ const MappingPlane* DataMonitor::GetMappingPlane(Int_t bd, TString sp, Int_t pl)
   MappingTable *mtable = NULL;
   mtable = fMapCollection->GetMappingTable( fBoardCode[bd].Data()  );
   if(!mtable) {
-    std::cout << " Could not find board code " << fBoardCode[bd].Data() << " in collection. abort" << std::endl;
-    exit(0);
+    //std::cout << " Could not find board code " << bd << " " << fBoardCode[bd].Data() << " in collection." << std::endl;
+    fNotInstalled[bd] = true;
   }
+  if(fNotInstalled[bd]) return NULL;
+  fNotInstalled[bd] = false;
   MappingSpot *mspot = NULL;
   mspot = mtable->GetMappingSpot(sp.Data()); assert(mspot);
   if(!mspot) {
@@ -490,7 +511,7 @@ DataMonitor::DataMonitor(TApplication *app, UInt_t w, UInt_t h) {
   //====== MAPCOLLECTION
   fMapCollection = new MappingTableCollection();
   {
-    const char *mfiles[] = {"./Run_Data/B00e.root", "./Run_Data/Z03k.A.root"};
+    const char *mfiles[] = {"./Run_Data/B00e.root", "./Run_Data/Z03k.A.root", "./Run_Data/Z03k.B.root", "./Run_Data/Z03k.D.root", "./Run_Data/V00a.root"};
     for(unsigned i=0; i<sizeof(mfiles)/sizeof(mfiles[0]); i++) {
       TFile *ff = new TFile(mfiles[i]);
       MappingTable *mtable = (MappingTable*)ff->Get("MappingTable"); assert(mtable);

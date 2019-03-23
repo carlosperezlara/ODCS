@@ -22,11 +22,12 @@
 
 const Int_t kNumberOfChannels=26;
 const Int_t kNumberOfBoards=8;
-const Int_t kNumberOfSamples=256;
+const Int_t kNumberOfSamples=16;
+//const Int_t kNumberOfSamples=256;
 //const Int_t kMergeRefresh=1000; // noevents
 //const Int_t kNewEventRefresh=100; // noevents
-const Int_t kMergeRefresh=50; // noevents
-const Int_t kNewEventRefresh=10; // noevents
+const Int_t kMergeRefresh=10; // noevents
+const Int_t kNewEventRefresh=5; // noevents
 
 class DataMonitor {
  private:
@@ -84,6 +85,7 @@ class DataMonitor {
   Double_t fStretch[kNumberOfBoards][kNumberOfChannels];
   Int_t fDREAMChannels[kNumberOfBoards];
   Int_t fDREAMChannel[kNumberOfBoards][kNumberOfChannels];
+  Bool_t fNotInstalled[kNumberOfBoards];
   
  public:
   DataMonitor(TApplication *app, UInt_t w, UInt_t h);

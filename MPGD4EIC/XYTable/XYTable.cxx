@@ -33,6 +33,7 @@ const int kMotorY=2;
 const TString devVelmex="/dev/ttyUSB0";
 const TString devMitutoyo="/dev/ttyUSB1";
 const bool _TURN_ON_READER_ = true;
+const bool _TURN_ON_DRIVER_ = false;
 
 void XYTable::CreateControl(TGCompositeFrame *mf) {
   TGTab *tabcontainer = new TGTab(mf,96,26);
@@ -550,6 +551,10 @@ void XYTable::ReadPositions() {
     foutL << fSPMX << " " << fSPMY << std::endl;
     foutL.close();
     //std::cout << "done..." << std::endl;
+  }
+  if(!_TURN_ON_DRIVER_) {
+    fXmust = fXobj = fDXmust = fDXnow;
+    fYmust = fYobj = fDYmust = fDYnow;
   }
   /*
   static int every = 0;

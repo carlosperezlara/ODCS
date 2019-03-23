@@ -53,7 +53,7 @@ int process_event (Event * e) {
   } else {
     Packet *p = e->getPacket(3000);
     if(p) {
-      for(int feu=0; feu!=1; ++feu) {
+      for(int feu=0; feu!=8; ++feu) {
 	Int_t feuid = p->iValue(feu, "FEU_ID");
 	Int_t samples =  p->iValue(p->iValue(feu, "FEU_ID"), "SAMPLES");
 	//for(int ch=0; ch!=512/*8x64*/; ++ch) {
@@ -65,7 +65,7 @@ int process_event (Event * e) {
 	    gHist2D->Fill( double(ch), double(sa),  double(adc) );
 	  }	  
 	}
-      */
+	*/
 	//std::cout << " Reading FEU ID " << feuid << " which has " << samples << " samples." <<  std::endl;
 	int nch = gDM->GetDREAMChannels(feu);
 	int minch = gDM->GetDREAMChannel(feu,0);
@@ -100,8 +100,8 @@ int main(int nn, char** arg) {
     std::cout << filename.Data() << std::endl;
     pfileopen( filename.Data() );
   } else {
-    ptestopen(); gTOYMODEL = true;
-    //rcdaqopen();
+    //ptestopen(); gTOYMODEL = true;
+    rcdaqopen();
   }
 
   TApplication *app = new TApplication("gui",0,0);

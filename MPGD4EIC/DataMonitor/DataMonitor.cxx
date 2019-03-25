@@ -41,11 +41,19 @@ void DataMonitor::Merge() {
   std::vector<std::pair<unsigned, unsigned> > myhits;
   for(int i=0; i!=kNumberOfBoards; ++i) {
     for(int j=0; j!=fDREAMChannels[i]; ++j) {
-      Double_t hei = fChannel[i][j]->GetMaximum() - fPedestals[i][j];
+      Int_t bpea = fChannel[i][j]->GetMaximumBin();
+      Int_t bmin = bpea-fIntWindow[i];
+      Int_t bmax = bpea+fIntWindow[i];
+      if(bmin<0) bmin=0;
+      if(bmax>kNumberOfSamples) bmax=kNumberOfSamples;
+      Double_t sum = fChannel[i][j]->Integral( bmin, bmax  );
+      sum -= (bmax-bmin)*fPedestals[i][j];
+
+      //Double_t hei = fChannel[i][j]->GetMaximum() - fPedestals[i][j];
+      Double_t hei = fChannel[i][j]->GetBinContent( bpea ) - fPedestals[i][j];
       fHeight[i][j]->Fill( hei );
-      Double_t sum = fChannel[i][j]->Integral() -kNumberOfSamples*fPedestals[i][j];
       fWidth[i][j]->Fill( sum );
-      for(int b=0; b!=fChannel[i][j]->GetXaxis()->GetNbins(); ++b) {
+      for(int b=0; b!=kNumberOfSamples; ++b) {
 	Double_t xc = fChannel[i][j]->GetXaxis()->GetBinCenter(b+1);
 	Double_t yc = fChannel[i][j]->GetBinContent(b+1);
 	fSignal[i][j]->Fill(xc,yc,hei);
@@ -68,16 +76,18 @@ void DataMonitor::Merge() {
     if(!mplane) continue;
     std::vector<Cluster> myclusters = mplane->GetClusters( myhits );
       
-    /*
-    std::cout << "  myclusters " << myclusters.size() << " || ";
-    for(unsigned i=0; i!=myclusters.size(); ++i) {
-      std::cout << myclusters[i].mWidth << " ";
-      std::cout << myclusters[i].mAmplitude << " ";
-      std::cout << myclusters[i].mCentroid << " ";
-      std::cout << " || ";
+    //std::cout << " BOARD " << i << " || myclusters " << myclusters.size() << " || WD: ";
+    fClusters_Num[i]->Fill( double(myclusters.size()) );
+    for(unsigned kk=0; kk!=myclusters.size(); ++kk) {
+      fClusters_Wid[i]->Fill( myclusters[kk].mWidth );
+      fClusters_Amp[i]->Fill( myclusters[kk].mAmplitude );
+      fClusters_xCE[i]->Fill( myclusters[kk].mCentroid );
+      //std::cout << myclusters[kk].mWidth << " AMP: ";
+      //std::cout << myclusters[kk].mAmplitude << " xCENT: ";
+      //std::cout << myclusters[kk].mCentroid << " ";
+      //std::cout << " || ";
     }
-	std::cout << std::endl;
-    */
+    //std::cout << std::endl;
   }
   if(fNoEventsSampled%kMergeRefresh==0) {
     RefreshAll();
@@ -112,6 +122,42 @@ void DataMonitor::NewRun(Int_t run) {
   ReadPosition();
   ReadConfig();
   ConfigureChannels();
+
+  static bool awaking = true;
+  if(!awaking) {
+    // saving info
+    TTimeStamp timestamp;
+    TString ts = timestamp.AsString("s");;
+    std::ofstream fout("Run_Data/history.log",std::ofstream::out|std::ofstream::app);
+    fout << ts.Data() << "  " << kNumberOfBoards << "  ";
+    for(int bd=0;bd!=kNumberOfBoards; ++bd) {
+      Double_t SUM = 0;
+      for(int i=0; i!=fDREAMChannels[bd]; ++i) {
+	SUM += fWidth[bd][i]->Integral();
+      }
+      fout << Form("  %e",SUM);
+    }      
+    fout.close();
+  } else {
+    awaking = false;
+  }
+  //refreshing history
+  std::ifstream fin("Run_Data/history.log");
+  TString timeS1, timeS2;
+  Int_t numb;
+  Double_t ddd[kNumberOfBoards];
+  for(;;) {
+    fin >> timeS1 >> timeS2 >> numb;
+    if(!fin.good()) break;
+    for(int i=0; i<numb; ++i) {
+      fin >> ddd[i];
+    }
+    if(!fin.good()) break;
+    for(int i=0; i<numb; ++i) {
+      fHistory[i]->SetPoint( fHistory[i]->GetN(), fHistory[i]->GetN(), ddd[i] );
+    }
+  }
+  fin.close();
 }
 //====================
 void DataMonitor::NewEvent(Int_t evr) {
@@ -136,6 +182,30 @@ void DataMonitor::NewEvent(Int_t evr) {
       std::cout << "DM: I am ready."<< std::endl;
     }
   }
+}
+//====================
+void DataMonitor::CreateClusters(TGCompositeFrame *mf) {
+  TRootEmbeddedCanvas *embeddedCanvas = new TRootEmbeddedCanvas("clustersplot",mf,850,900,kSunkenFrame);
+  Int_t cId = embeddedCanvas->GetCanvasWindowId();
+  fCanvasMapCL = new TCanvas("CanvasMapCL", 10, 10, cId);
+  embeddedCanvas->AdoptCanvas(fCanvasMapCL);
+  mf->AddFrame(embeddedCanvas, new TGLayoutHints(kLHintsLeft | kLHintsTop,5,5,2,2));
+  fCanvasMapCL->SetTopMargin(0.1);
+  fCanvasMapCL->SetBottomMargin(0.1);
+  fCanvasMapCL->SetLeftMargin(0.2);
+  fCanvasMapCL->SetRightMargin(0.1);
+  fCanvasMapCL->Divide(4,kNumberOfBoards);
+  for(int bd=0; bd!=kNumberOfBoards; ++bd) {
+    TVirtualPad *tmp1 = fCanvasMapCL->cd(bd*4+1);
+    fClusters_Num[bd]->Draw("HIST");
+    TVirtualPad *tmp2 = fCanvasMapCL->cd(bd*4+2);
+    fClusters_Amp[bd]->Draw("HIST");
+    TVirtualPad *tmp3 = fCanvasMapCL->cd(bd*4+3);
+    fClusters_Wid[bd]->Draw("HIST");
+    TVirtualPad *tmp4 = fCanvasMapCL->cd(bd*4+4);
+    fClusters_xCE[bd]->Draw("HIST");
+  }
+  fCanvasMapCL->SetEditable(kFALSE);
 }
 //====================
 void DataMonitor::CreateChannels(TGCompositeFrame *mf) {
@@ -260,7 +330,7 @@ const MappingPlane* DataMonitor::GetMappingPlane(Int_t bd, TString sp, Int_t pl)
 void DataMonitor::ModelPads(Int_t bd) {
   double x[100];
   double y[100];
-  double gx = 0;
+  double gx = -fPitchX[bd][0]*fDREAMChannels[bd]/2; //0;
   for(int str=0; str!=fDREAMChannels[bd]; ++str) {
     double xp = fPitchX[bd][str];
     double wd = 0.8*xp;
@@ -309,6 +379,10 @@ void DataMonitor::CreateDisplayConfiguration(TGCompositeFrame *mf) {
     ModelPads(i);
     fDiagrams[i]->Draw("COL");
   }
+
+  TGCompositeFrame *mfR3 = new TGCompositeFrame(mf, 170, 20, kVerticalFrame);
+  mf->AddFrame(mfR3, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
+  CreateHistory(mfR3);
 }
 //====================
 void DataMonitor::CreateScans(TGCompositeFrame *mf) {
@@ -399,7 +473,8 @@ void DataMonitor::CreateHitSummary(TGCompositeFrame *mf) {
     tmp->SetBottomMargin(0.1);
     tmp->SetLeftMargin(0.2);
     tmp->SetRightMargin(0.1);
-    fHitSummary[i]->Draw("HIST");
+    //fHitSummary[i]->Draw("HIST");
+    fHitSummary[i]->Draw("E");
   }
   fCanvasMapHS->SetEditable(kFALSE);
 }
@@ -417,9 +492,31 @@ void DataMonitor::CreateTimeSummary(TGCompositeFrame *mf) {
     tmp->SetBottomMargin(0.1);
     tmp->SetLeftMargin(0.2);
     tmp->SetRightMargin(0.1);
-    fTimeSummary[i]->Draw("HIST");
+    //fTimeSummary[i]->Draw("HIST");
+    fTimeSummary[i]->Draw("E");
   }
   fCanvasMapTS->SetEditable(kFALSE);
+}
+//====================
+void DataMonitor::CreateHistory(TGCompositeFrame *mf) {
+  TRootEmbeddedCanvas *embeddedCanvas = new TRootEmbeddedCanvas("historygraph",mf,1900,100,kSunkenFrame);
+  Int_t cId = embeddedCanvas->GetCanvasWindowId();
+  fCanvasMapHI = new TCanvas("CanvasMapHI", 10, 10, cId);
+  embeddedCanvas->AdoptCanvas(fCanvasMapHI);
+  mf->AddFrame(embeddedCanvas, new TGLayoutHints(kLHintsLeft | kLHintsTop,5,5,2,2));
+  fCanvasMapHI->Divide(kNumberOfBoards,0,0,0);
+  for(int i=0; i!=kNumberOfBoards; ++i) {
+    TVirtualPad *tmp = fCanvasMapHI->cd(i+1);
+    tmp->SetTopMargin(0.1);
+    tmp->SetBottomMargin(0.1);
+    tmp->SetLeftMargin(0.2);
+    tmp->SetRightMargin(0.1);
+    fHistory[i]->Draw("APL");
+    fHistory[i]->SetMarkerStyle(20);
+    fHistory[i]->SetMarkerColor(kBlue-3);
+    fHistory[i]->SetTitle( Form("Charge collected vs time B%d",i) );
+  }
+  fCanvasMapHI->SetEditable(kFALSE);
 }
 //====================
 void DataMonitor::RefreshAll() {
@@ -428,6 +525,7 @@ void DataMonitor::RefreshAll() {
     //std::cout << "   current canvas 1" << std::endl;
     fCanvasMap->SetEditable(kTRUE);
     for(int i=0; i!=kNumberOfChannels*kNumberOfBoards; ++i) {
+      if(fNotInstalled[i/kNumberOfChannels]) continue;
       fCanvasMap->cd(i+1)->Modified();
       fCanvasMap->cd(i+1)->Update();
     }
@@ -439,6 +537,7 @@ void DataMonitor::RefreshAll() {
     //std::cout << "   current canvas 2" << std::endl;
     fCanvasMapS->SetEditable(kTRUE);
     for(int i=0; i!=kNumberOfChannels*kNumberOfBoards; ++i) {
+      if(fNotInstalled[i/kNumberOfChannels]) continue;
       fCanvasMapS->cd(i+1)->Modified();
       fCanvasMapS->cd(i+1)->Update();
     }
@@ -450,6 +549,7 @@ void DataMonitor::RefreshAll() {
     //std::cout << "   current canvas 3" << std::endl;
     fCanvasMapH->SetEditable(kTRUE);
     for(int i=0; i!=kNumberOfChannels*kNumberOfBoards; ++i) {
+      if(fNotInstalled[i/kNumberOfChannels]) continue;
       fCanvasMapH->cd(i+1)->Modified();
       fCanvasMapH->cd(i+1)->Update();
     }
@@ -461,6 +561,7 @@ void DataMonitor::RefreshAll() {
     //std::cout << "   current canvas 4" << std::endl;
     fCanvasMapW->SetEditable(kTRUE);
     for(int i=0; i!=kNumberOfChannels*kNumberOfBoards; ++i) {
+      if(fNotInstalled[i/kNumberOfChannels]) continue;
       fCanvasMapW->cd(i+1)->Modified();
       fCanvasMapW->cd(i+1)->Update();
     }
@@ -472,6 +573,7 @@ void DataMonitor::RefreshAll() {
     //std::cout << "   current canvas 5" << std::endl;
     fCanvasMapSC->SetEditable(kTRUE);
     for(int i=0; i!=kNumberOfBoards; ++i) {
+      if(fNotInstalled[i/kNumberOfChannels]) continue;
       fCanvasMapSC->cd(i+1)->Modified();
       fCanvasMapSC->cd(i+1)->Update();
     }
@@ -479,20 +581,45 @@ void DataMonitor::RefreshAll() {
     fCanvasMapSC->Update();
     fCanvasMapSC->SetEditable(kFALSE);
   }
-
-  //std::cout << "   current canvas 4" << std::endl;
-  fCanvasMapHS->SetEditable(kTRUE);
-  for(int i=0; i!=kNumberOfBoards; ++i) {
-    fCanvasMapHS->cd(i+1)->Modified();
-    fCanvasMapHS->cd(i+1)->Update();
+  if(fTabContainer->GetCurrent()==6&&fCanvasMapHI) {
+    //std::cout << "   current canvas 6" << std::endl;
+    fCanvasMapHI->SetEditable(kTRUE);
+    for(int i=0; i!=kNumberOfBoards; ++i) {
+      if(fNotInstalled[i]) continue;
+      fCanvasMapHI->cd(i+1)->Modified();
+      fCanvasMapHI->cd(i+1)->Update();
+    }
+    fCanvasMapHI->Modified();
+    fCanvasMapHI->Update();
+    fCanvasMapHI->SetEditable(kFALSE);
   }
-  fCanvasMapHS->Modified();
-  fCanvasMapHS->Update();
-  fCanvasMapHS->SetEditable(kFALSE);
-  //if(fTabContainer->GetCurrent()==5&&fCanvasMapTS) {
-  //std::cout << "   current canvas 5" << std::endl;
+
+  if(fTabContainer2->GetCurrent()==1&&fCanvasMapCL) {
+    fCanvasMapCL->SetEditable(kTRUE);
+    for(int i=0; i!=kNumberOfBoards*4; ++i) {
+      if(fNotInstalled[i]) continue;
+      fCanvasMapCL->cd(i+1)->Modified();
+      fCanvasMapCL->cd(i+1)->Update();
+    }
+    fCanvasMapCL->Modified();
+    fCanvasMapCL->Update();
+    fCanvasMapCL->SetEditable(kFALSE);
+  }
+  if(fTabContainer2->GetCurrent()==0&&fCanvasMapHS) {
+    fCanvasMapHS->SetEditable(kTRUE);
+    for(int i=0; i!=kNumberOfBoards; ++i) {
+      if(fNotInstalled[i]) continue;
+      fCanvasMapHS->cd(i+1)->Modified();
+      fCanvasMapHS->cd(i+1)->Update();
+    }
+    fCanvasMapHS->Modified();
+    fCanvasMapHS->Update();
+    fCanvasMapHS->SetEditable(kFALSE);
+  }
+
   fCanvasMapTS->SetEditable(kTRUE);
   for(int i=0; i!=kNumberOfBoards; ++i) {
+    if(fNotInstalled[i]) continue;
     fCanvasMapTS->cd(i+1)->Modified();
     fCanvasMapTS->cd(i+1)->Update();
   }
@@ -500,6 +627,16 @@ void DataMonitor::RefreshAll() {
   fCanvasMapTS->Update();
   fCanvasMapTS->SetEditable(kFALSE);
   //std::cout << "  << RefreshAll called" << std::endl;
+}
+//====================
+void DataMonitor::StyleH1(TH1D *tmp) {
+  tmp->SetFillColor(kBlue-3);
+  tmp->SetLineColor(kBlue-3);
+  tmp->SetStats(1);
+  tmp->GetYaxis()->SetLabelSize(0.1);
+  tmp->GetXaxis()->SetLabelSize(0.1);
+  tmp->GetXaxis()->SetNdivisions(504);
+  tmp->GetYaxis()->SetNdivisions(508);
 }
 //====================
 DataMonitor::DataMonitor(TApplication *app, UInt_t w, UInt_t h) {
@@ -527,11 +664,12 @@ DataMonitor::DataMonitor(TApplication *app, UInt_t w, UInt_t h) {
   //====== HISTOGRAMS
   fTimeSummaryTemp = new TH1D( "TST","TST",kNumberOfSamples,-0.5,kNumberOfSamples-0.5);
   for(int i=0; i!=kNumberOfBoards; ++i) {
-    fDiagrams[i] = new TH2Poly( Form("BD%d",i), Form("BD%d;X [mm];Y [mm]",i), 0,13,0,12);
+    fDiagrams[i] = new TH2Poly( Form("BD%d",i), Form("BD%d;X [mm];Y [mm]",i), -8,+8,0,12);
     fDiagrams[i]->SetStats(0);
     int st = -kNumberOfChannels/2;
-    fHitSummary[i] = new TH1D( Form("HS%d",i),Form("HS%d;chn  idx;counts",i),kNumberOfChannels,
-			       st-0.5,st+kNumberOfChannels-0.5);
+    fHistory[i] = new TGraph();
+    fHitSummary[i] = new TProfile( Form("HS%d",i),Form("HS%d;chn  idx;counts",i),kNumberOfChannels,
+				   st-0.5,st+kNumberOfChannels-0.5,"S"); 
     fHitSummary[i]->SetFillColor(kBlue-3);
     fHitSummary[i]->SetLineColor(kBlue-3);
     fHitSummary[i]->SetStats(1);
@@ -539,7 +677,11 @@ DataMonitor::DataMonitor(TApplication *app, UInt_t w, UInt_t h) {
     fHitSummary[i]->GetXaxis()->SetLabelSize(0.1);
     fHitSummary[i]->GetXaxis()->SetNdivisions(504);
     fHitSummary[i]->GetYaxis()->SetNdivisions(508);
-    fTimeSummary[i] = new TH1D( Form("TS%d",i),Form("TS%d;sample  idx;counts",i),kNumberOfSamples,-0.5,kNumberOfSamples-0.5);
+    fClusters_Num[i] = new TH1D( Form("CLUN%d",i),Form("CLUN%d",i),5,-0.5,4.5);     StyleH1(fClusters_Num[i]);
+    fClusters_Wid[i] = new TH1D( Form("CLUW%d",i),Form("CLUW%d",i),30, -0.5, 29.5); StyleH1(fClusters_Wid[i]);
+    fClusters_Amp[i] = new TH1D( Form("CLUA%d",i),Form("CLUA%d",i),100, 0, 10000);  StyleH1(fClusters_Amp[i]);
+    fClusters_xCE[i] = new TH1D( Form("CLUX%d",i),Form("CLUX%d",i),100,-5.1,+5.1);  StyleH1(fClusters_xCE[i]);
+    fTimeSummary[i] = new TProfile( Form("TS%d",i),Form("TS%d;sample  idx;counts",i),kNumberOfSamples,-0.5,kNumberOfSamples-0.5,"S");
     fTimeSummary[i]->SetFillColor(kBlue-3);
     fTimeSummary[i]->SetLineColor(kBlue-3);
     fTimeSummary[i]->SetStats(1);
@@ -556,8 +698,8 @@ DataMonitor::DataMonitor(TApplication *app, UInt_t w, UInt_t h) {
       fWidth[i][j] = NULL;
       fChannel[i][j] = new TH1D( Form("C%dP%d",i,j),Form("C%dP%d",i,j),kNumberOfSamples,-0.5,kNumberOfSamples-0.5);
       fSignal[i][j] = new TProfile( Form("S%dP%d",i,j),Form("S%dP%d",i,j),kNumberOfSamples,-0.5,kNumberOfSamples-0.5);
-      fHeight[i][j] = new TH1D( Form("H%dP%d",i,j),Form("H%dP%d",i,j),100,0,1100);
-      fWidth[i][j] = new TH1D( Form("W%dP%d",i,j),Form("W%dP%d",i,j),100,0,50000);
+      fHeight[i][j] = new TH1D( Form("H%dP%d",i,j),Form("H%dP%d",i,j),100,0,800);
+      fWidth[i][j] = new TH1D( Form("W%dP%d",i,j),Form("W%dP%d",i,j),100,0,1000);
       fChannel[i][j]->SetFillColor(kBlue-3);
       fChannel[i][j]->SetLineColor(kBlue-3);
       fSignal[i][j]->SetFillColor(kBlue-3);
@@ -581,7 +723,7 @@ DataMonitor::DataMonitor(TApplication *app, UInt_t w, UInt_t h) {
       fWidth[i][j]->GetXaxis()->SetLabelSize(0.1);
       fWidth[i][j]->GetXaxis()->SetNdivisions(504);
       fWidth[i][j]->GetYaxis()->SetNdivisions(508);
-      fPedestals[i][j] = 50;
+      fPedestals[i][j] = 250;
     }
   }
   fThisRun = NULL;
@@ -599,8 +741,8 @@ DataMonitor::DataMonitor(TApplication *app, UInt_t w, UInt_t h) {
   fWindowHitSummary->AddFrame(fTabContainer2, new TGLayoutHints(kLHintsTop | kLHintsExpandX,2,2,2,2));
   TGCompositeFrame *tab0_2 = fTabContainer2->AddTab("Weighted Average of Hit Distribution");
   CreateHitSummary(tab0_2);
-  TGCompositeFrame *tab1_2 = fTabContainer2->AddTab("Cluster Distribution");
-  //CreateHitSummary(tab0_2);
+  TGCompositeFrame *tab1_2 = fTabContainer2->AddTab("Clusters");
+  CreateClusters(tab1_2);
 
   fWindowTimeSummary = new TGMainFrame(gClient->GetRoot(), 950, 1050);
   fWindowTimeSummary->SetWindowName("Weighted Average of Wave Profile");
@@ -630,6 +772,8 @@ DataMonitor::DataMonitor(TApplication *app, UInt_t w, UInt_t h) {
   CreateWidths(tab4);
   TGCompositeFrame *tab5 = fTabContainer->AddTab("Overall Scan");
   CreateScans(tab5);
+  //TGCompositeFrame *tab6 = fTabContainer->AddTab("History");
+  //CreateHistory(tab6);
 
   fWindowDetails->MapSubwindows();
   fWindowDetails->Layout();

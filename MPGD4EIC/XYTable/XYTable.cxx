@@ -35,7 +35,9 @@ const TString devMitutoyo="/dev/ttyUSB1111JUNK"; //it does not attempt to ping
 const bool _TURN_ON_READER_ = true;
 const bool _TURN_ON_DRIVER_ = true;
 const Double_t kPrecX = 0.1;
-const Double_t kPrecY = 0.01;
+const Double_t kPrecY = 0.1;
+const Double_t kXYTable_OffX = +6.0;
+const Double_t kXYTable_OffY = 0.0;
 
 void XYTable::CreateControl(TGCompositeFrame *mf) {
   TGTab *tabcontainer = new TGTab(mf,96,26);
@@ -481,10 +483,15 @@ void XYTable::MoveXY() {
     LoadLogY();
     //std::cout << "YYY" << fYmust-fYnow << std::endl;
   }
-  if(fMotor) {
-    fMotor->MoveRelative(kMotorX,-1*(fXmust-fXnow),kMotorY,fYmust-fYnow);
-  } else {
-    fCallBusy->TurnOn();
+  if(!_TURN_ON_DRIVER_) {
+    fXmust = fXobj = fDXmust = fDXnow;
+    fYmust = fYobj = fDYmust = fDYnow;
+  } else {  
+    if(fMotor) {
+      fMotor->MoveRelative(kMotorX,-1*(fXmust-fXnow),kMotorY,fYmust-fYnow);
+    } else {
+      fCallBusy->TurnOn();
+    }
   }
   PrepareMove();
   fCallReadPositions->TurnOn();
@@ -520,35 +527,50 @@ void XYTable::ReadBusy() {
   if(!fMotor) {
     //std::cout << " I am here" << std::endl;
     int motx1=1, motx2=2, moty1=1, moty2=2, err =0;
-    err = gSystem->Exec( Form("motor getpos > %smovequery1.tmp",sPath.Data()) );
-    if(err>0) return;
-    err = gSystem->Exec( Form("motor getpos > %smovequery2.tmp",sPath.Data()) );
-    if(err>0) return;
     std::ifstream finL;
+    err = gSystem->Exec(Form("motor pos > %smovequery1.tmp",sPath.Data()));
+    if(err>0) return;
     finL.open( Form("%smovequery1.tmp",sPath.Data()));
-    finL >> motx1 >> moty1;
+    finL >> motx1;
+    if(!finL.good()) return;
+    finL >> moty1;
     finL.close();
+    std::cout << " MOTOR1 readed" << std::endl;
+    //sleep(1000);
+    err = gSystem->Exec(Form("motor pos > %smovequery2.tmp",sPath.Data()));
+    if(err>0) return;
     finL.open( Form("%smovequery2.tmp",sPath.Data()));
-    finL >> motx2 >> moty2;
+    finL >> motx2;
+    if(!finL.good()) return;
+    finL >> moty2;
     finL.close();
+    std::cout << " MOTOR2 readed" << std::endl;
     //std::cout << " " << motx1 << " " << motx2 << " " << moty1 << " " << moty2 << std::endl;
     if(motx1!=motx2 || moty1!=moty2) { // still working leave me alone
-      std::cout << "Still working. Leave me alone." << std::endl;
+      //std::cout << "Still working. Leave me alone." << std::endl;
+      //std::cout << " " << motx1 << " " << motx2 << " " << moty1 << " " << moty2 << std::endl;
       return;
     } else {
+      std::cout << " " << motx1 << " " << motx2 << " " << moty1 << " " << moty2 << std::endl;
       TString cmd;
-      if( TMath::Abs(fDXmust-fDXnow) > kPrecX  ) {
+      Double_t deltaX = fDXmust-fDXnow;
+      if( TMath::Abs(deltaX) > kPrecX  ) {
 	// issue a X move command
-	std::cout << "deltaX " << TMath::Abs(fDXmust-fDXnow) << std::endl;
-	cmd = Form("motor rmove_x %.0f", -(fDXmust-fDXnow)*fSPMX );
+	Double_t regX = 0;
+	if(deltaX<0) regX = -0.5;
+	std::cout << "deltaX " << deltaX << "mm  (" << regX << ")"<< std::endl;
+	cmd = Form("motor rmove_x %.0f", (deltaX+regX)*fSPMX );
 	std::cout << cmd.Data() << std::endl;
 	//gSystem->Exec( cmd.Data() );
 	return; //and do no more for now
       } else doneX = true;
-      if( TMath::Abs(fDYmust-fDYnow) > kPrecY ) {
+      Double_t deltaY = fDYmust-fDYnow;
+      if( TMath::Abs(deltaY) > kPrecY ) {
 	// issue a Y move command
-	std::cout << "deltaY " << TMath::Abs(fDYmust-fDYnow) << std::endl;
-	cmd = Form("motor rmove_y %.0f", (fDYmust-fDYnow)*fSPMY );
+	Double_t regY = 0;
+	if(deltaY<0) regY = -0.5;
+	std::cout << "deltaY " << deltaY << "mm (" << regY << ")" << std::endl;
+	cmd = Form("motor rmove_y %.0f", -(deltaY+regY)*fSPMY );
 	std::cout << cmd.Data() << std::endl;
 	//gSystem->Exec( cmd.Data() );
 	return; //and do no more for now
@@ -559,6 +581,7 @@ void XYTable::ReadBusy() {
   if(doneX&&doneY) {
     fCallBusy->TurnOff();
     std::cout << "Moving operation done" << std::endl;
+    moving = false;
   }
 }
 //====================
@@ -573,8 +596,8 @@ void XYTable::ReadPositions() {
     TString fCellNow;
     if(fEncoder) {
       fEncoder->ReadXY(xmicrons,ymicrons);
-      fXnow = fDXnow = xmicrons/1000.0;
-      fYnow = fDYnow = ymicrons/1000.0;
+      fXnow = fDXnow = xmicrons/1000.0 +kXYTable_OffX;
+      fYnow = fDYnow = ymicrons/1000.0 +kXYTable_OffY;
     } else {
       std::ifstream finL;
       gSystem->Exec( Form("getpos > %sencquery1.tmp",sPath.Data()) );
@@ -585,11 +608,15 @@ void XYTable::ReadPositions() {
       finL.open( Form("%sencquery2.tmp",sPath.Data()));
       finL >> motx >> moty;
       finL.close();
-      fXnow = fDXnow;
-      fYnow = fDYnow;
+      fXnow = fDXnow = fDXnow + kXYTable_OffX;
+      fYnow = fDYnow = fDYnow + kXYTable_OffY;
       //std::cout << "I read " << fDXnow << " " << fDYnow << std::endl;
       finL.close();
     }
+    //// ********* REMOVE ME AFTER YOU SWTICH THE AXIS
+    fXnow = fDXnow = -fDXnow;
+    fYnow = fDYnow = -fDYnow;
+    //// **********************************************
     static bool first = true;
     if(first){
       //std::cout << "WTH" << std::endl;
@@ -720,8 +747,8 @@ XYTable::XYTable(TApplication *app, UInt_t w, UInt_t h) : TGMainFrame(gClient->G
 
   // ==== CONECTING DEVICES
   fMotor = new Velmex(devVelmex.Data());
-  fSPMX = 126.1402;
-  fSPMY = 1259.1736;
+  fSPMX = 126.032;//126.1402;
+  fSPMY = 1259.25;//1259.1736;
   if(fMotor->Error()) {
     std::cout << "Velmex not plugged. Moving to remote control." << std::endl;
     delete fMotor;
@@ -779,13 +806,14 @@ XYTable::XYTable(TApplication *app, UInt_t w, UInt_t h) : TGMainFrame(gClient->G
   MapWindow();
   Move(0,4000);
   
+  ReadPositions();
   fCallReadPositions = new TTimer();
   fCallReadPositions->Connect("Timeout()", "XYTable", this, "ReadPositions()");
   fCallReadPositions->Start(2000, kFALSE);
 
   fCallBusy = new TTimer();
   fCallBusy->Connect("Timeout()", "XYTable", this, "ReadBusy()");
-  fCallBusy->Start(500, kFALSE);
+  fCallBusy->Start(0, kFALSE);
   fCallBusy->TurnOff();
   
   PrepareMove();

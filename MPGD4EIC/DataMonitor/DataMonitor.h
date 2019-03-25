@@ -12,46 +12,58 @@
 
 #include <MappingTableCollection.h>
 #include <TH1D.h>
+#include <TH2D.h>
 #include <TH2Poly.h>
 #include <TProfile.h>
+#include <TProfile2D.h>
 #include <TString.h>
 #include <TCanvas.h>
 #include <TGraph.h>
 #include <TTimer.h>
 #include <TImage.h>
 
-const Int_t kNumberOfChannels=26;
 const Int_t kNumberOfBoards=8;
-const Int_t kNumberOfSamples=32;
-//const Int_t kNumberOfSamples=256;
-//const Int_t kMergeRefresh=1000; // noevents
-//const Int_t kNewEventRefresh=100; // noevents
+const Int_t kNumberOfChannels=26;
+const Int_t kNumberOfSamples=16;
 const Int_t kMergeRefresh=1000; // noevents
-const Int_t kNewEventRefresh=10; // noevents
+const Int_t kNewEventRefresh=100; // noevents
+
+
+//const Int_t kNumberOfChannels=26;
+//const Int_t kNumberOfSamples=32;
+//const Int_t kMergeRefresh=1000; // noevents
+//const Int_t kNewEventRefresh=10; // noevents
 
 class DataMonitor {
  private:
   void CreateScans(TGCompositeFrame *mf);
   void CreateDisplayConfiguration(TGCompositeFrame *mf);
+  void CreateClusters(TGCompositeFrame *mf);
   void CreateChannels(TGCompositeFrame *mf);
   void CreateSignals(TGCompositeFrame *mf);
   void CreateHeights(TGCompositeFrame *mf);
   void CreateWidths(TGCompositeFrame *mf);
   void CreateHitSummary(TGCompositeFrame *mf);
   void CreateTimeSummary(TGCompositeFrame *mf);
+  void CreateHistory(TGCompositeFrame *mf);
   const MappingPlane* GetMappingPlane(Int_t bd, TString sp, Int_t pl=0);
   void ReadPosition();
   void ReadConfig();
   void ConfigureChannels();
   void StampRun(TGCompositeFrame *mf);
   void ModelPads(Int_t bd);
+  void StyleH1(TH1D*);
   TApplication *fApp;
   TH1D *fChannel[kNumberOfBoards][kNumberOfChannels]; // display kNumberOfChannels strips
   TProfile *fSignal[kNumberOfBoards][kNumberOfChannels]; // display kNumberOfChannels strips
   TH1D *fHeight[kNumberOfBoards][kNumberOfChannels]; // display kNumberOfChannels strips
   TH1D *fWidth[kNumberOfBoards][kNumberOfChannels]; // display kNumberOfChannels strips
-  TH1D *fHitSummary[kNumberOfBoards];
-  TH1D *fTimeSummary[kNumberOfBoards];
+  TH1D *fClusters_Num[kNumberOfBoards];
+  TH1D *fClusters_Wid[kNumberOfBoards];
+  TH1D *fClusters_Amp[kNumberOfBoards];
+  TH1D *fClusters_xCE[kNumberOfBoards];
+  TProfile *fHitSummary[kNumberOfBoards];
+  TProfile *fTimeSummary[kNumberOfBoards];
   TH1D *fTimeSummaryTemp;
   TH2Poly *fDiagrams[kNumberOfBoards];
   TCanvas *fCanvasMap;
@@ -62,6 +74,9 @@ class DataMonitor {
   TCanvas *fCanvasMapTS;
   TCanvas *fCanvasMapCF;
   TCanvas *fCanvasMapSC;
+  TCanvas *fCanvasMapHI;
+  TCanvas *fCanvasMapCL;
+  TGraph *fHistory[kNumberOfBoards];
   TGMainFrame *fWindowHitSummary;
   TGMainFrame *fWindowTimeSummary;
   TGMainFrame *fWindowDetails;
@@ -86,6 +101,7 @@ class DataMonitor {
   Int_t fDREAMChannels[kNumberOfBoards];
   Int_t fDREAMChannel[kNumberOfBoards][kNumberOfChannels];
   Bool_t fNotInstalled[kNumberOfBoards];
+  Double_t fIntWindow[kNumberOfBoards];
   
  public:
   DataMonitor(TApplication *app, UInt_t w, UInt_t h);

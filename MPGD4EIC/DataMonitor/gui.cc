@@ -14,13 +14,15 @@ Bool_t gTOYMODEL=false;
 
 //======================
 void FillRandom(Double_t idx) {
-  Double_t mpv = gRandom->Gaus( 50.0, 5.0 );
-  Double_t sig = gRandom->Gaus(  5.0, 1.0 );
-  Double_t ped = gRandom->Gaus(  1.0, 0.1 );
+  //Double_t mpv = gRandom->Gaus( kNumberOfSamples/4.0,  5.0 );
+  //Double_t sig = gRandom->Gaus( kNumberOfSamples/16.0, 1.0 );
+  Double_t mpv = gRandom->Gaus( 6.0, 0.5 );
+  Double_t sig = gRandom->Gaus( 2.0, 0.3 );
+  Double_t ped = gRandom->Gaus( 1.0, 0.1 );
   Double_t mod = TMath::Gaus(idx,0,5.0);
-  Double_t hei = gRandom->Gaus( 3000, 300 );
-  for(int i=0; i!=256; ++i) {
-    Double_t adc = mod*hei*TMath::Landau(0.5+i,mpv,sig);// + 50*ped;
+  Double_t hei = gRandom->Gaus( 2000, 100 );
+  for(int i=0; i!=kNumberOfSamples; ++i) {
+    Double_t adc = mod*hei*TMath::Landau(0.5+i,mpv,sig) + 250*ped;
     gHist1D->SetBinContent( i+1, adc );
   }
 }
@@ -43,6 +45,7 @@ int process_event (Event * e) {
   if(gTOYMODEL) {
     gHist1D = NULL;
     for(int bd=0; bd!=kNumberOfBoards; ++bd) {
+      if(gDM->IsBoardNotInstalled(bd)) continue;
       Int_t numch = gDM->GetDREAMChannels(bd);
       for(int ch=0; ch!=numch; ++ch) {
 	gHist1D = gDM->GetChannel(bd,ch);
@@ -127,8 +130,8 @@ int main(int nn, char** arg) {
     std::cout << filename.Data() << std::endl;
     pfileopen( filename.Data() );
   } else {
-    //ptestopen(); gTOYMODEL = true;
-    rcdaqopen();
+    ptestopen(); gTOYMODEL = true;
+    //rcdaqopen();
   }
 
   TApplication *app = new TApplication("gui",0,0);

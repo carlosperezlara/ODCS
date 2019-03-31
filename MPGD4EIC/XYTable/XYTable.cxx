@@ -36,8 +36,8 @@ const bool _TURN_ON_READER_ = true;
 const bool _TURN_ON_DRIVER_ = true;
 const Double_t kPrecX = 0.1;
 const Double_t kPrecY = 0.1;
-const Double_t kXYTable_OffX = +6.0;
-const Double_t kXYTable_OffY = 0.0;
+const Double_t kXYTable_OffX = -6.0+2.5+2.5;
+const Double_t kXYTable_OffY = -9.0;
 
 void XYTable::CreateControl(TGCompositeFrame *mf) {
   TGTab *tabcontainer = new TGTab(mf,96,26);
@@ -131,22 +131,22 @@ void XYTable::ChangeCoordsFromCell(const char* rc) {
   }
   //std::cout << tmpC << "(" << row << ", " << col << ")" << std::endl;
   fCell[9-row][col]->SetState(kButtonDown);
-  fXobj = fPreLoaded[row][col][0];
-  fYobj = fPreLoaded[row][col][1];
+  fXobj = fDXobj = fPreLoaded[row][col][0];
+  fYobj = fDYobj = fPreLoaded[row][col][1];
   UpdateXYState();
   PrepareMove();
   fCell[9-row][col]->SetState(kButtonUp);
 }
 //====================
 void XYTable::SetOutOfWay() {
-  fXobj = 0;
-  fYobj = -80;
+  fXobj = fDXobj = 0;
+  fYobj = fDYobj = -80;
   PrepareMove();
 }
 //====================
 void XYTable::SetObj() {
-  fXobj = fGTXobj->GetNumberEntry()->GetNumber( );
-  fYobj = fGTYobj->GetNumberEntry()->GetNumber( );
+  fXobj = fDXobj = fGTXobj->GetNumberEntry()->GetNumber( );
+  fYobj = fDYobj = fGTYobj->GetNumberEntry()->GetNumber( );
   PrepareMove();
 }
 //====================
@@ -288,9 +288,15 @@ void XYTable::CreateScriptControl(TGCompositeFrame *mf) {
   fScriptBody->LoadFile("./Position_Data/Script.sh");
   fScriptBody->GetText();
   fScriptBody->Goto( fScriptBody->GetText()->RowCount() , 0 );
-  fScriptInit->LoadFile("./Position_Data/sequence_All.txt");
+  fScriptInit->LoadFile("./Position_Data/sequence.txt");
   fScriptInit->GetText();
   fScriptInit->Goto( fScriptInit->GetText()->RowCount() , 0 );
+  TGCompositeFrame *line4 = new TGCompositeFrame(mf, 170, 20, kHorizontalFrame);
+  mf->AddFrame(line4, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
+  fMoveS = new TGTextButton(mf, "&Start ");
+  fMoveS->Connect("Clicked()", "XYTable", this, "MoveStart()");
+  fMoveS->SetToolTipText( "Run in automatic mode" );
+  mf->AddFrame(fMoveS, new TGLayoutHints(kLHintsTop | kLHintsExpandX,5,5,2,2));
 }
 //====================
 void XYTable::CreateControlButtons(TGCompositeFrame *mf,TGCompositeFrame *mf2) {
@@ -377,9 +383,9 @@ void XYTable::CreatePlot(TGCompositeFrame *mf) {
 }
 //====================
 void XYTable::UpdatePointer() {
-  if(fPointer) fPointer->SetPoint(0,fXnow,fYnow);
-  if(fPointerObj) fPointerObj->SetPoint(0,fXobj,fYobj);
-  if(fPointerMust) fPointerMust->SetPoint(0,fXmust,fYmust);
+  if(fPointer) fPointer->SetPoint(0,fDXnow,fDYnow);
+  if(fPointerObj) fPointerObj->SetPoint(0,fDXobj,fDYobj);
+  if(fPointerMust) fPointerMust->SetPoint(0,fDXmust,fDYmust);
   if(fCanvasMap) fCanvasMap->Update();
 }
 //====================
@@ -388,12 +394,17 @@ void XYTable::UpdateXYState() {
   if(fGTYobj) fGTYobj->GetNumberEntry()->SetNumber( fYobj );
   if(fGLXnow) fGLXnow->SetText( Form("%.3f",fDXnow) );
   if(fGLYnow) fGLYnow->SetText( Form("%.3f",fDYnow) );
-  if((fXnow==fXmust)&&(fXmust==fXobj)) {
+
+  Double_t deltaX1 = fDXmust-fDXobj;
+  Double_t deltaX2 = fDXmust-fDXnow;
+  Double_t deltaY1 = fDYmust-fDYobj;
+  Double_t deltaY2 = fDYmust-fDYnow;
+  if( (TMath::Abs(deltaX1)<kPrecX)&&(TMath::Abs(deltaX2)<kPrecX)  ) {
     fGLXsta->SetText( " reached " );
     fGLXsta->SetForegroundColor(fPixelBlack);
     fGTXobj->GetNumberEntry()->SetForegroundColor(fPixelBlack);
   }
-  if((fYnow==fYmust)&&(fYmust==fYobj)) {
+  if( (TMath::Abs(deltaY1)<kPrecY)&&(TMath::Abs(deltaY2)<kPrecY)  ) {
     fGLYsta->SetText( " reached " );
     fGLYsta->SetForegroundColor(fPixelBlack);
     fGTYobj->GetNumberEntry()->SetForegroundColor(fPixelBlack);
@@ -415,13 +426,15 @@ void XYTable::PrepareMove() {
   fReset->SetEnabled(kFALSE);
 
   bool dosomething = false;
-  if(fXobj!=fXmust) {
+  Double_t deltaX1 = fDXmust-fDXobj;
+  Double_t deltaY1 = fDYmust-fDYobj;
+  if( (TMath::Abs(deltaX1)>kPrecX)  ) {
     fGLXsta->SetText( " setting " );
     fGLXsta->SetForegroundColor(fPixelRed);
     fGTXobj->GetNumberEntry()->SetForegroundColor(fPixelRed);
     dosomething = true;
   }
-  if(fYobj!=fYmust) {
+  if( (TMath::Abs(deltaY1)>kPrecY)  ) {
     fGLYsta->SetText( " setting " );
     fGLYsta->SetForegroundColor(fPixelRed);
     fGTYobj->GetNumberEntry()->SetForegroundColor(fPixelRed);
@@ -487,6 +500,7 @@ void XYTable::MoveXY() {
     fXmust = fXobj = fDXmust = fDXnow;
     fYmust = fYobj = fDYmust = fDYnow;
   } else {  
+    fMovingOperation = kTRUE;    
     if(fMotor) {
       fMotor->MoveRelative(kMotorX,-1*(fXmust-fXnow),kMotorY,fYmust-fYnow);
     } else {
@@ -497,9 +511,37 @@ void XYTable::MoveXY() {
   fCallReadPositions->TurnOn();
 }
 //====================
+void XYTable::MoveStart() {
+  std::cout << "**Automatic Operation START" << std::endl;
+  TString nextcell;
+  std::ifstream points("./Position_Data/sequence.txt");
+  for(;;) {
+    points >> nextcell;
+    if(!points.good()) break;
+    std::cout << "**Moving to " << nextcell << std::endl;
+    ChangeCoordsFromCell(nextcell.Data());
+    MoveXY();
+    while(fMovingOperation) {
+      if( fCallBusy->IsActive() )
+	std::cout << "sleeping 1" << std::endl;
+      sleep(10);
+    }
+    //while( fMovingOperation ) {
+    //std::cout << " AA" << std::endl;
+    //}
+    std::cout << "**Executing script ... " << std::endl;
+    int err = gSystem->Exec("source Postion_Data/Script.sh");
+    if(err!=0) {
+      std::cout << "******** script failure! ********" << std::endl;
+    } else {
+      std::cout << "**DONE " << std::endl;
+    }
+  }
+  std::cout << "Automatic Operation FINISH" << std::endl;
+}
+//====================
 TString XYTable::WhereAmI() {
   TString cell = "A0";
-
   // Slot connected to the Clicked() signal.
   char cellstr[10] = {'A','B','C','D','E',
 		      'F','G','H','I','J'};
@@ -517,62 +559,79 @@ TString XYTable::WhereAmI() {
 }
 //====================
 void XYTable::ReadBusy() {
+  //std::cout << " CALLING"  << std::endl;
   static bool moving = false;
+  static int nstep = 0;
   if(!moving) {
-    std::cout << "Moving operation start" << std::endl;
+    std::cout << std::endl << "Moving operation start" << std::endl;
+    //fCallReadPositions->TurnOff();    
     moving = true;
+    fMovingOperation = kTRUE;
+    nstep = -1;
   }
+  //ReadPositions();
   bool doneX = false;
   bool doneY = false;
   if(!fMotor) {
     //std::cout << " I am here" << std::endl;
     int motx1=1, motx2=2, moty1=1, moty2=2, err =0;
-    std::ifstream finL;
-    err = gSystem->Exec(Form("motor pos > %smovequery1.tmp",sPath.Data()));
-    if(err>0) return;
-    finL.open( Form("%smovequery1.tmp",sPath.Data()));
-    finL >> motx1;
-    if(!finL.good()) return;
-    finL >> moty1;
-    finL.close();
-    std::cout << " MOTOR1 readed" << std::endl;
-    //sleep(1000);
-    err = gSystem->Exec(Form("motor pos > %smovequery2.tmp",sPath.Data()));
-    if(err>0) return;
-    finL.open( Form("%smovequery2.tmp",sPath.Data()));
-    finL >> motx2;
-    if(!finL.good()) return;
-    finL >> moty2;
-    finL.close();
-    std::cout << " MOTOR2 readed" << std::endl;
+    if(nstep==0) {
+      err = gSystem->Exec("motor pos > Position_Data/movequery1.tmp");
+      if(err>0) return;
+      //std::cout << "READ 0" << std::endl;
+      nstep = 1;
+      return;
+    } else if(nstep==1) {
+      err = gSystem->Exec("motor pos > Position_Data/movequery2.tmp");
+      if(err>0) return;
+      //std::cout << "READ 1" << std::endl;
+      nstep = 0;
+    }
+    if(nstep!=-1) {
+      std::ifstream finL;
+      finL.open( "Position_Data/movequery1.tmp" );
+      finL >> motx1;
+      if(!finL.good()) return;
+      finL >> moty1;
+      finL.close();
+      //std::cout << " MOTOR1 readed" << std::endl;
+      //sleep(1);
+      //err = gSystem->Exec(Form("motor pos > %smovequery2.tmp",sPath.Data()));
+      //if(err>0) return;
+      finL.open( "Position_Data/movequery2.tmp" );
+      finL >> motx2;
+      if(!finL.good()) return;
+      finL >> moty2;
+      finL.close();
+      //std::cout << " MOTOR2 readed" << std::endl;
+    } else { //first call is free
+      motx1=motx2=moty1=moty2=0;
+      nstep = 0;
+    }
     //std::cout << " " << motx1 << " " << motx2 << " " << moty1 << " " << moty2 << std::endl;
     if(motx1!=motx2 || moty1!=moty2) { // still working leave me alone
       //std::cout << "Still working. Leave me alone." << std::endl;
       //std::cout << " " << motx1 << " " << motx2 << " " << moty1 << " " << moty2 << std::endl;
       return;
     } else {
-      std::cout << " " << motx1 << " " << motx2 << " " << moty1 << " " << moty2 << std::endl;
+      //std::cout << " " << motx1 << " " << motx2 << " " << moty1 << " " << moty2 << std::endl;
       TString cmd;
       Double_t deltaX = fDXmust-fDXnow;
       if( TMath::Abs(deltaX) > kPrecX  ) {
 	// issue a X move command
-	Double_t regX = 0;
-	if(deltaX<0) regX = -0.5;
-	std::cout << "deltaX " << deltaX << "mm  (" << regX << ")"<< std::endl;
-	cmd = Form("motor rmove_x %.0f", (deltaX+regX)*fSPMX );
+	std::cout << "  deltaX " << deltaX << "mm" << std::endl;
+	cmd = Form("  motor rmove_x %.0f", deltaX*fSPMX );
 	std::cout << cmd.Data() << std::endl;
-	//gSystem->Exec( cmd.Data() );
+	gSystem->Exec( cmd.Data() );
 	return; //and do no more for now
       } else doneX = true;
       Double_t deltaY = fDYmust-fDYnow;
       if( TMath::Abs(deltaY) > kPrecY ) {
 	// issue a Y move command
-	Double_t regY = 0;
-	if(deltaY<0) regY = -0.5;
-	std::cout << "deltaY " << deltaY << "mm (" << regY << ")" << std::endl;
-	cmd = Form("motor rmove_y %.0f", -(deltaY+regY)*fSPMY );
+	std::cout << "  deltaY " << deltaY << "mm" << std::endl;
+	cmd = Form("  motor rmove_y %.0f", -deltaY*fSPMY );
 	std::cout << cmd.Data() << std::endl;
-	//gSystem->Exec( cmd.Data() );
+	gSystem->Exec( cmd.Data() );
 	return; //and do no more for now
       } else doneY = true;
     }
@@ -580,7 +639,13 @@ void XYTable::ReadBusy() {
   
   if(doneX&&doneY) {
     fCallBusy->TurnOff();
-    std::cout << "Moving operation done" << std::endl;
+    //fCallReadPositions->TurnOn();
+    std::cout << "Moving operation completed. Taking picture..." << std::endl;
+    gSystem->Exec("motion_cam_parse.pl http://cam0:8081 > Position_Data/currentShot.JPG");
+    //fIcon->SetImage("Position_Data/currentShot.JPG");
+    //fIcon->Resize(640*0.62,480*0.62);
+    std::cout << "Done" << std::endl;
+    fMovingOperation = kFALSE;
     moving = false;
   }
 }
@@ -591,6 +656,7 @@ void XYTable::ReadPositions() {
   Int_t ymicrons = (fYnow = fDYnow = fYmust)*1000;
   double motx=0;
   double moty=0;
+  static bool allGood = true;
   if(_TURN_ON_READER_) {
     //std::cout << "querying enconder..." << std::endl;
     TString fCellNow;
@@ -600,11 +666,26 @@ void XYTable::ReadPositions() {
       fYnow = fDYnow = ymicrons/1000.0 +kXYTable_OffY;
     } else {
       std::ifstream finL;
-      gSystem->Exec( Form("getpos > %sencquery1.tmp",sPath.Data()) );
+      Int_t err=0;
+      err = gSystem->Exec( Form("getpos > %sencquery1.tmp",sPath.Data()) );
+      if(err!=0 && !fMovingOperation) {
+	std::cout << "COULD NOT READ ENCODER. Please check if it is online!" << std::endl;
+	allGood = false;
+	return;
+      }
       finL.open( Form("%sencquery1.tmp",sPath.Data()));
       finL >> fDXnow >> fDYnow;
       finL.close();
-      gSystem->Exec( Form("motor pos > %sencquery2.tmp",sPath.Data()) );
+      err = gSystem->Exec( Form("motor pos > %sencquery2.tmp",sPath.Data()) );
+      if(err!=0 && !fMovingOperation) {
+	std::cout << "COULD NOT READ ENCODER. Please check if it is online!" << std::endl;
+	allGood = false;
+	return;
+      }
+      if(!allGood) {
+	std::cout << "connection restablished." << std::endl;
+	allGood = true;
+      }
       finL.open( Form("%sencquery2.tmp",sPath.Data()));
       finL >> motx >> moty;
       finL.close();
@@ -637,16 +718,8 @@ void XYTable::ReadPositions() {
     fXmust = fXobj = fDXmust = fDXnow;
     fYmust = fYobj = fDYmust = fDYnow;
   }
-  /*
-  static int every = 0;
-  if(every>50) {
-    gSystem->Exec("fswebcam -r 640x480 --jpeg 85 --font \"sans:26\" --timestamp \"%Y-%m-%d %H:%M:%S (%Z)\" -S 10 -q Position_Data/currentShot.JPG");
-    fIcon->SetImage(Form("%scurrentShot.JPG",sPath.Data()));
-    fIcon->Resize(640*0.62,480*0.62);
-    every = 0;
-  }
-  every++;
-  */
+  
+    //gSystem->Exec("fswebcam -r 640x480 --jpeg 85 --font \"sans:26\" --timestamp \"%Y-%m-%d %H:%M:%S (%Z)\" -S 10 -q Position_Data/currentShot.JPG");
   UpdateXYState();
 }
 //====================
@@ -744,6 +817,8 @@ XYTable::XYTable(TApplication *app, UInt_t w, UInt_t h) : TGMainFrame(gClient->G
   fPointerObj = NULL;
   fGTXobj = NULL;
   fGTYobj = NULL;
+  fMovingOperation = kFALSE;
+  fAngY = 0;
 
   // ==== CONECTING DEVICES
   fMotor = new Velmex(devVelmex.Data());
@@ -772,7 +847,7 @@ XYTable::XYTable(TApplication *app, UInt_t w, UInt_t h) : TGMainFrame(gClient->G
   gClient->GetColorByName("green",fPixelGreen);
   for(int r=0; r!=10; ++r)
     for(int c=0; c!=19; ++c) {
-      fPreLoaded[r][c][0] = -45 + 5*c;
+      fPreLoaded[r][c][0] = (-45 + 5*c)*TMath::Cos(fAngY/TMath::Pi()*180);
       fPreLoaded[r][c][1] = -45 + 10*r;
     }
   

@@ -28,11 +28,54 @@ void FillRandom(Double_t idx) {
 }
 //======================
 int pinit() {
+  //pidentify(0);
   return 0;
 }
 //======================
 int process_event (Event * e) {
   //std::cout << " [pmonitor::process_event called" << std::endl;
+  // TOYMODEL
+  if(gTOYMODEL) {
+    static Int_t evnrTM = 0;
+    if( evnrTM == 0 ) {
+      std::cout << std::endl << " ***** running TOY MODEL ****** " << std::endl << std::endl;
+      gCurrentRun = 0;
+      gDM->NewRun(gCurrentRun);
+    }
+    if(evnrTM>10000) {
+      evnrTM = 0;
+      gCurrentRun++;
+      gDM->NewRun(gCurrentRun);
+      std::cout << std::endl << " ***** TM: new run ****** " << std::endl << std::endl;
+      usleep(4000);
+    }
+    //std::cout << std::endl << " I AM HERE " << std::endl << std::endl;
+    gDM->NewEvent( evnrTM );
+    //std::cout << std::endl << " NOW HERE " << std::endl << std::endl;
+    gHist1D = NULL;
+    for(int bd=0; bd!=kNumberOfBoards; ++bd) {
+      if(gDM->IsBoardNotInstalled(bd)) continue;
+      //gHist2D = gDM->GetScan(bd);
+      Int_t numch = gDM->GetDREAMChannels(bd);
+      for(int ch=0; ch!=numch; ++ch) {
+	gHist1D = gDM->GetChannel(bd,ch);
+	if(gHist1D) {
+	  FillRandom(ch-numch/2);
+	}
+	//if(gHist2D) {
+	//  gHist2D->Fill();
+	//}
+      }
+    }
+    //std::cout << " pmonitor::process_event built ]. Launching merge..." << std::endl;
+    gDM->Merge();
+    evnrTM++;
+    //usleep(500);
+    //std::cout << " DONE" << std::endl << std::endl;
+    return 0;
+  }
+
+  //REAL DATA
   Int_t run = e->getRunNumber();
   if(gCurrentRun!=run) {
     gDM->NewRun(run);
@@ -40,83 +83,63 @@ int process_event (Event * e) {
   }
   Int_t evnr = e->getEvtSequence();
   gDM->NewEvent( evnr );
-
-  if(1) {
-  if(gTOYMODEL) {
-    gHist1D = NULL;
-    for(int bd=0; bd!=kNumberOfBoards; ++bd) {
-      if(gDM->IsBoardNotInstalled(bd)) continue;
-      Int_t numch = gDM->GetDREAMChannels(bd);
-      for(int ch=0; ch!=numch; ++ch) {
-	gHist1D = gDM->GetChannel(bd,ch);
-	if(gHist1D) {
-	  FillRandom(ch-numch/2);
+  
+  Packet *p = e->getPacket(3000);
+  if(p) {
+    int nfeu = p->iValue(0, "NR_FEU");
+    if(nfeu>9) {
+      std::cout << " [pmonitor] Ev" << evnr;
+      std::cout << " NR_FEU reports to be greater than 9. Unreasonable. Skipping event." << std::endl;
+    } else {
+      for(int feu=0; feu<nfeu; ++feu) {
+	if(gDM->IsBoardNotInstalled(feu)) continue;
+	Int_t feuid = p->iValue(feu, "FEU_ID");
+	Int_t samples =  p->iValue(feuid, "SAMPLES");
+	Int_t nchips = p->iValue(feuid, "NR_DREAM");
+	//std::cout << " Reading FEU ID " << feuid << " which has " << samples << " samples." <<  std::endl;
+	if(samples>256) {
+	  std::cout << " [pmonitor] Ev" << evnr <<  " FEU ID " << feuid;
+	  std::cout << " reports number of samples greater than 256. Skipping FEU." << std::endl;
+	  continue;
 	}
-      }
-    }
-  } else {
-    Packet *p = e->getPacket(3000);
-    if(p) {
-      int nfeu = p->iValue(0, "NR_FEU");
-      if(nfeu>9) {
-	std::cout << " [pmonitor] Ev" << evnr;
-	std::cout << " NR_FEU reports to be greater than 9. Unreasonable. Skipping event." << std::endl;
-      } else {
-	for(int feu=0; feu<nfeu; ++feu) {
-	  if(gDM->IsBoardNotInstalled(feu)) continue;
-	  Int_t feuid = p->iValue(feu, "FEU_ID");
-	  Int_t samples =  p->iValue(feuid, "SAMPLES");
-	  Int_t nchips = p->iValue(feuid, "NR_DREAM");
-	  //std::cout << " Reading FEU ID " << feuid << " which has " << samples << " samples." <<  std::endl;
-	  if(samples>256) {
-	    std::cout << " [pmonitor] Ev" << evnr <<  " FEU ID " << feuid;
-	    std::cout << " reports number of samples greater than 256. Skipping FEU." << std::endl;
-	    continue;
-	  }
-	  if(nchips>8) {
-	    std::cout << " [pmonitor] Ev" << evnr << " FEU ID " << feuid;
-	    std::cout << " reports number of chips greater than 8. Skipping FEU." << std::endl;
-	    continue;
-	  }
-	  // ALL aboard
-	  for(int chip=0; chip<nchips; ++chip) {
-	    if( !p->iValue(feuid,chip,"DREAM_ENABLED") ) continue;
-	    for(int ch=0; ch!=64; ++ch) {
-	      gHist2D = gDM->GetScan(feu);
-	      for(int sa=0; sa!=samples; ++sa) {
-		Int_t dreamch = ch+64*chip;
-		Int_t adc = p->iValue( feuid, dreamch, sa);
-		gHist2D->Fill( double(dreamch), double(sa),  double(adc) );
-	      }	  
-	    }
-	  }
-	  int nch = gDM->GetDREAMChannels(feu);
-	  int minch = gDM->GetDREAMChannel(feu,0);
-	  int maxch = minch + nch;
-	  //std::cout << " Listening to " << minch << "--" << maxch << std::endl;
-	  for(int ch=minch; ch<maxch; ++ch) {
-	    Int_t chipD = ch/54;
-	    if( !p->iValue(feuid,chipD,"DREAM_ENABLED") ) continue;
-	    gHist1D = gDM->GetChannel(feu,ch-minch);
-	    for(int sa=0; sa<samples; ++sa) {
-	      Int_t adc = p->iValue( feuid, ch, sa);
-	      gHist1D->SetBinContent( sa+1, double(adc) );
-	      //std::cout << adc << "|";
-	    }
-	  }	
-	  //std::cout << std::endl;
+	if(nchips>8) {
+	  std::cout << " [pmonitor] Ev" << evnr << " FEU ID " << feuid;
+	  std::cout << " reports number of chips greater than 8. Skipping FEU." << std::endl;
+	  continue;
 	}
+	// ALL aboard
+	for(int chip=0; chip<nchips; ++chip) {
+	  if( !p->iValue(feuid,chip,"DREAM_ENABLED") ) continue;
+	  for(int ch=0; ch!=64; ++ch) {
+	    gHist2D = gDM->GetScan(feu);
+	    for(int sa=0; sa!=samples; ++sa) {
+	      Int_t dreamch = ch+64*chip;
+	      Int_t adc = p->iValue( feuid, dreamch, sa);
+	      gHist2D->Fill( double(dreamch), double(sa),  double(adc) );
+	    }	  
+	  }
+	}
+	int nch = gDM->GetDREAMChannels(feu);
+	int minch = gDM->GetDREAMChannel(feu,0);
+	int maxch = minch + nch;
+	//std::cout << " Listening to " << minch << "--" << maxch << std::endl;
+	for(int ch=minch; ch<maxch; ++ch) {
+	  Int_t chipD = ch/54;
+	  if( !p->iValue(feuid,chipD,"DREAM_ENABLED") ) continue;
+	  gHist1D = gDM->GetChannel(feu,ch-minch);
+	  for(int sa=0; sa<samples; ++sa) {
+	    Int_t adc = p->iValue( feuid, ch, sa);
+	    gHist1D->SetBinContent( sa+1, double(adc) );
+	    //std::cout << adc << "|";
+	  }
+	}	
+	//std::cout << std::endl;
       }
     }
     delete p;
   }
-  }
   //std::cout << " pmonitor::process_event built ]. Launching merge..." << std::endl;
-
-
-
   gDM->Merge();
-  //sleep(1);
   //std::cout << " DONE" << std::endl << std::endl;
   return 0;
 }
@@ -133,7 +156,7 @@ int main(int nn, char** arg) {
     ptestopen(); gTOYMODEL = true;
     //rcdaqopen();
   }
-
+  
   TApplication *app = new TApplication("gui",0,0);
   gDM = new DataMonitor(app, 1600, 850);
   

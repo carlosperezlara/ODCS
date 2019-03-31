@@ -22,7 +22,8 @@
 #include <TTimer.h>
 #include <TImage.h>
 
-const Int_t kNumberOfBoards=8;
+const Int_t kNumberOfBoards=9;
+const Int_t kTotalNumberOfChannels=512;
 const Int_t kNumberOfChannels=26;
 const Int_t kNumberOfSamples=16;
 const Int_t kMergeRefresh=1000; // noevents
@@ -52,7 +53,11 @@ class DataMonitor {
   void ConfigureChannels();
   void StampRun(TGCompositeFrame *mf);
   void ModelPads(Int_t bd);
+  TString GetLocalCell(Int_t bd);
   void StyleH1(TH1D*);
+  void GetXYFromCell(TString, Double_t&,Double_t&);
+  TString GetCellName(Double_t,Double_t);
+  void ReCreateHistograms();
   TApplication *fApp;
   TH1D *fChannel[kNumberOfBoards][kNumberOfChannels]; // display kNumberOfChannels strips
   TProfile *fSignal[kNumberOfBoards][kNumberOfChannels]; // display kNumberOfChannels strips
@@ -95,6 +100,8 @@ class DataMonitor {
   Double_t fPosY;
   TString fBoardCode[kNumberOfBoards];
   TString fBoardTech[kNumberOfBoards];
+  Int_t fBoardAngle[kNumberOfBoards];
+  TString fBoardCELL[kNumberOfBoards];
   Double_t fPitchX[kNumberOfBoards][kNumberOfChannels];
   Double_t fPeriodY[kNumberOfBoards][kNumberOfChannels];
   Double_t fStretch[kNumberOfBoards][kNumberOfChannels];
@@ -102,6 +109,7 @@ class DataMonitor {
   Int_t fDREAMChannel[kNumberOfBoards][kNumberOfChannels];
   Bool_t fNotInstalled[kNumberOfBoards];
   Double_t fIntWindow[kNumberOfBoards];
+  Bool_t fReady;
   
  public:
   DataMonitor(TApplication *app, UInt_t w, UInt_t h);

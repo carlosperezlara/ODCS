@@ -26,6 +26,7 @@ class XYTable : public TGMainFrame {
 
   TGTextButton     *fCell[10][19];
   TGTextButton     *fMove;
+  TGTextButton     *fMoveS;
   TGTextButton     *fReset;
   TGTextButton     *fCancel;
   TGTextButton     *fClose;
@@ -43,7 +44,7 @@ class XYTable : public TGMainFrame {
   TGLabel *fMotorXLU;
   TGLabel *fMotorYLU;
 
-  Bool_t fRemoteMove;
+  Bool_t fMovingOperation;
   Bool_t fLock;
   int fXnow;
   int fYnow;
@@ -53,10 +54,13 @@ class XYTable : public TGMainFrame {
   int fYobj;
   Double_t fDXnow;
   Double_t fDYnow;
+  Double_t fDXobj;
+  Double_t fDYobj;
   Double_t fDXmust;
   Double_t fDYmust;
   Double_t fSPMX;
   Double_t fSPMY;
+  Double_t fAngY;
   
   TCanvas *fCanvasMap;
   TCanvas *fCanvasImg;
@@ -101,6 +105,7 @@ class XYTable : public TGMainFrame {
   void UpdateXYState();
   void UpdatePointer();
   void MoveXY();
+  void MoveStart();
   void ResetXY();
   void CancelXY();
   void LoadLogX();

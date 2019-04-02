@@ -1,6 +1,8 @@
 #ifndef XYTABLE_H
 #define XYTABLE_H
 
+#include <vector>
+
 #include <TApplication.h>
 #include <TGFrame.h>
 #include <TGButton.h>
@@ -22,7 +24,7 @@ class XYTable : public TGMainFrame {
  private:
   TApplication *fApp;
   TString sPath;
-  Int_t fPreLoaded[10][19][2];
+  Double_t fPreLoaded[10][19][2];
 
   TGTextButton     *fCell[10][19];
   TGTextButton     *fMove;
@@ -61,6 +63,7 @@ class XYTable : public TGMainFrame {
   Double_t fSPMX;
   Double_t fSPMY;
   Double_t fAngY;
+  std::vector<TString> fCells;
   
   TCanvas *fCanvasMap;
   TCanvas *fCanvasImg;
@@ -70,6 +73,7 @@ class XYTable : public TGMainFrame {
   TGraph *fPointerMust;
   TTimer *fCallReadPositions;
   TTimer *fCallBusy;
+  TTimer *fCaptain;
   Pixel_t fPixelRed;
   Pixel_t fPixelWhite;
   Pixel_t fPixelBlue;
@@ -78,6 +82,7 @@ class XYTable : public TGMainFrame {
   Pixel_t fPixelDefaultBgr;
   Velmex *fMotor;
   Mitutoyo *fEncoder;
+  int fYouMayFireWhenReady;
 
   void CreateTab1(TGCompositeFrame*);
   void CreateTab2(TGCompositeFrame*);

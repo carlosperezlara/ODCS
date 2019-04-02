@@ -14,6 +14,7 @@
 #include <TString.h>
 #include <TCanvas.h>
 #include <TGraph.h>
+#include <TMath.h>
 #include <TTimer.h>
 #include <TH2F.h>
 #include <TTimeStamp.h>
@@ -38,6 +39,7 @@ const Double_t kPrecX = 0.1;
 const Double_t kPrecY = 0.1;
 const Double_t kXYTable_OffX = -6.0+2.5+2.5;
 const Double_t kXYTable_OffY = -9.0;
+const Double_t kRod = 10;
 
 void XYTable::CreateControl(TGCompositeFrame *mf) {
   TGTab *tabcontainer = new TGTab(mf,96,26);
@@ -62,7 +64,7 @@ void XYTable::CreatePreLoadedTable(TGCompositeFrame *mf) {
       TString mycell = Form("%c%d",cellstr[c],9-r);
       fCell[r][c] = new TGTextButton(fFCell[r], c%2==0?mycell.Data():"" );
       fCell[r][c]->Connect("Clicked()", "XYTable", this, Form("ChangeCoordsFromCell(=\"%s\")",mycell.Data()));
-      fCell[r][c]->SetToolTipText( Form("set to ( x = %d, y = %d)",fPreLoaded[9-r][c][0],fPreLoaded[9-r][c][1]) );
+      fCell[r][c]->SetToolTipText( Form("set to ( x = %.1f, y = %.1f)",fPreLoaded[9-r][c][0],fPreLoaded[9-r][c][1]) );
       fFCell[r]->AddFrame(fCell[r][c], new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 1, 1, 1, 1));
     }
   }
@@ -85,7 +87,7 @@ void XYTable::CreateManualControl(TGCompositeFrame *mf) {
   labs = new TGLabel(r1,"X [mm] :");
   r1->AddFrame(labs, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
   fGTXobj = new TGNumberEntry(r1,10,9,9999,
-			      TGNumberFormat::kNESInteger,
+			      TGNumberFormat::kNESRealThree,
 			      TGNumberFormat::kNEAAnyNumber,
 			      TGNumberFormat::kNELLimitMinMax,-50,+50);
   fGTXobj->Connect("ValueSet(Long_t)", "XYTable", this, "SetObj()");
@@ -94,7 +96,7 @@ void XYTable::CreateManualControl(TGCompositeFrame *mf) {
   labs = new TGLabel(r1,"Y [mm] :");
   r1->AddFrame(labs, new TGLayoutHints(kLHintsCenterX|kLHintsExpandX, 5, 5, 2, 2));
   fGTYobj = new TGNumberEntry(r1,10,9,999,
-			      TGNumberFormat::kNESInteger,
+			      TGNumberFormat::kNESRealThree,
 			      TGNumberFormat::kNEAAnyNumber,
 			      TGNumberFormat::kNELLimitMinMax,-50,+50);
   fGTYobj->Connect("ValueSet(Long_t)", "XYTable", this, "SetObj()");
@@ -342,7 +344,7 @@ void XYTable::CreatePlot(TGCompositeFrame *mf) {
   TRootEmbeddedCanvas *embeddedCanvas = new TRootEmbeddedCanvas("canvasplot",mf,400,400,kSunkenFrame);
   Int_t cId = embeddedCanvas->GetCanvasWindowId();
   fCanvasMap = new TCanvas("CanvasMap", 10, 10, cId);
-  fCanvasMap->SetTopMargin(0.03);
+  fCanvasMap->SetTopMargin(0.05);
   fCanvasMap->SetBottomMargin(0.08);
   fCanvasMap->SetLeftMargin(0.11);
   fCanvasMap->SetRightMargin(0.02);
@@ -350,7 +352,9 @@ void XYTable::CreatePlot(TGCompositeFrame *mf) {
   mf->AddFrame(embeddedCanvas, new TGLayoutHints(kLHintsLeft | kLHintsTop,5,5,2,2));
   fCanvasMap->SetGridx(1);
   fCanvasMap->SetGridy(1);
-  TH2F *axis = new TH2F("axis",";X  [mm];Y  [mm]",100,-55,+55,100,-55,+55);
+  Double_t desp = TMath::Sin(fAngY*TMath::Pi()/180.)*kRod;
+  Double_t scale = TMath::Cos(fAngY*TMath::Pi()/180.);
+  TH2F *axis = new TH2F("axis",";X  [mm];Y  [mm]",100,-55*scale+desp,+55*scale+desp,100,-55,+55);
   axis->SetStats(0);
   axis->Draw();
   axis->GetXaxis()->SetNdivisions(820);
@@ -361,8 +365,11 @@ void XYTable::CreatePlot(TGCompositeFrame *mf) {
   for(int r=0; r!=10; ++r) 
     for(int c=0; c!=19; ++c)
       if(c%2==0) {
-	tex->DrawLatex(fPreLoaded[r][c][0]-3.5,fPreLoaded[r][c][1]-2, Form("%c%d",cellstr[c],r) );
+	tex->DrawLatex(fPreLoaded[r][c][0]-3.5*scale,fPreLoaded[r][c][1]-2, Form("%c%d",cellstr[c],r) );
       }
+  tex->SetTextSize(0.03);
+  tex->SetTextColor(kBlack);
+  tex->DrawLatex(-50*scale,+57, Form("at %.1f deg  => desp %.1f",fAngY,desp) );
   Double_t x[1] = {0};
   Double_t y[1] = {0};
   fPointer = new TGraph(1,x,y);
@@ -390,8 +397,8 @@ void XYTable::UpdatePointer() {
 }
 //====================
 void XYTable::UpdateXYState() {
-  if(fGTXobj) fGTXobj->GetNumberEntry()->SetNumber( fXobj );
-  if(fGTYobj) fGTYobj->GetNumberEntry()->SetNumber( fYobj );
+  if(fGTXobj) fGTXobj->GetNumberEntry()->SetNumber( fDXobj );
+  if(fGTYobj) fGTYobj->GetNumberEntry()->SetNumber( fDYobj );
   if(fGLXnow) fGLXnow->SetText( Form("%.3f",fDXnow) );
   if(fGLYnow) fGLYnow->SetText( Form("%.3f",fDYnow) );
 
@@ -452,8 +459,8 @@ void XYTable::PrepareMove() {
 }
 //====================
 void XYTable::ResetXY() {
-  fXobj = fXnow;
-  fYobj = fYnow;
+  fXobj = fXnow = fDXobj = fDXnow;
+  fYobj = fYnow = fDYobj = fDYnow;
   PrepareMove();
 }
 //====================
@@ -465,9 +472,11 @@ void XYTable::CancelXY() {
 }
 //====================
 void XYTable::MoveXY() {
+  if(fMovingOperation) return;
   fCallReadPositions->TurnOff();
   //std::cout << "CallMoveXY" << std::endl;
-  if( (fXmust==fXobj) && (fYmust==fYobj) ) return;
+  if( (TMath::Abs(fDXmust-fDXobj)<kPrecX) && (TMath::Abs(fDYmust-fDYobj)<kPrecY) ) return;
+  //if( (fXmust==fXobj) && (fYmust==fYobj) ) return;
   //std::cout << "Something to do" << std::endl;
   fMove->SetEnabled(kFALSE);
   fReset->SetEnabled(kFALSE);
@@ -476,22 +485,22 @@ void XYTable::MoveXY() {
 
   TTimeStamp timestamp;
   TString ts = timestamp.AsString("s");;
-  if( TMath::Abs( fDXmust-fXobj ) > kPrecX ) {
-    fDXmust = fXmust = fXobj;
+  if( TMath::Abs( fDXmust-fDXobj ) > kPrecX ) {
+    fXmust = fXobj = fDXmust = fDXobj;
     fGLXsta->SetText( " moving " );
     fGLXsta->SetForegroundColor(fPixelGreen);
     std::ofstream foutX( Form("%sPositionX.log",sPath.Data()),std::ofstream::out|std::ofstream::app);
-    foutX << Form("%s => %d mm",ts.Data(),fXmust) << std::endl;
+    foutX << Form("%s => %.3f mm",ts.Data(),fDXmust) << std::endl;
     foutX.close();
     LoadLogX();
     //std::cout << "XXX" << fXmust-fXnow << std::endl;
   }
-  if( TMath::Abs( fDYmust-fYobj ) > kPrecY ) {
-    fDYmust = fYmust = fYobj;
+  if( TMath::Abs( fDYmust-fDYobj ) > kPrecY ) {
+    fYmust = fYobj = fDYmust = fDYobj;
     fGLYsta->SetText( " moving " );
     fGLYsta->SetForegroundColor(fPixelGreen);
     std::ofstream foutY( Form("%sPositionY.log",sPath.Data()),std::ofstream::out|std::ofstream::app);
-    foutY << Form("%s => %d mm",ts.Data(),fYmust) << std::endl;
+    foutY << Form("%s => %.3f mm",ts.Data(),fDYmust) << std::endl;
     foutY.close();
     LoadLogY();
     //std::cout << "YYY" << fYmust-fYnow << std::endl;
@@ -502,7 +511,7 @@ void XYTable::MoveXY() {
   } else {  
     fMovingOperation = kTRUE;    
     if(fMotor) {
-      fMotor->MoveRelative(kMotorX,-1*(fXmust-fXnow),kMotorY,fYmust-fYnow);
+      fMotor->MoveRelative(kMotorX,-1*(fDXmust-fDXnow),kMotorY,fDYmust-fDYnow);
     } else {
       fCallBusy->TurnOn();
     }
@@ -512,32 +521,22 @@ void XYTable::MoveXY() {
 }
 //====================
 void XYTable::MoveStart() {
-  std::cout << "**Automatic Operation START" << std::endl;
+  std::cout << std::endl << "*********************************" << std::endl;
+  std::cout <<              "*** Automatic Operation START ***" << std::endl;
   TString nextcell;
   std::ifstream points("./Position_Data/sequence.txt");
+  fCells.clear();
   for(;;) {
     points >> nextcell;
     if(!points.good()) break;
-    std::cout << "**Moving to " << nextcell << std::endl;
-    ChangeCoordsFromCell(nextcell.Data());
-    MoveXY();
-    while(fMovingOperation) {
-      if( fCallBusy->IsActive() )
-	std::cout << "sleeping 1" << std::endl;
-      sleep(10);
-    }
-    //while( fMovingOperation ) {
-    //std::cout << " AA" << std::endl;
-    //}
-    std::cout << "**Executing script ... " << std::endl;
-    int err = gSystem->Exec("source Postion_Data/Script.sh");
-    if(err!=0) {
-      std::cout << "******** script failure! ********" << std::endl;
-    } else {
-      std::cout << "**DONE " << std::endl;
-    }
+    fCells.push_back( nextcell  );
   }
-  std::cout << "Automatic Operation FINISH" << std::endl;
+  if(fCells.size()>0) {
+    fYouMayFireWhenReady = 0;
+    std::cout << "**Moving to " << fCells[fYouMayFireWhenReady] << std::endl;
+    ChangeCoordsFromCell(fCells[fYouMayFireWhenReady++].Data());
+    MoveXY();
+  }
 }
 //====================
 TString XYTable::WhereAmI() {
@@ -545,12 +544,13 @@ TString XYTable::WhereAmI() {
   // Slot connected to the Clicked() signal.
   char cellstr[10] = {'A','B','C','D','E',
 		      'F','G','H','I','J'};
-  int xx = fDXnow + 50;
-  int yy = fDYnow + 50;
+  Double_t scale = TMath::Cos(fAngY*TMath::Pi()/180.);
+  Double_t desp = TMath::Sin(fAngY*TMath::Pi()/180.)*kRod;
+  Double_t dx = fDXnow + 50*scale;
+  int yy = (fDYnow + 50)/10;
+  int xx = dx/(10*scale)+desp;
   if(xx<0) xx=0;
   if(yy<0) yy=0;
-  xx = xx/10;
-  yy = yy/10;
   if(xx>9) xx=9;
   if(yy>9) yy=9;
   //std::cout << xx << " " << yy << std::endl;
@@ -647,13 +647,33 @@ void XYTable::ReadBusy() {
     std::cout << "Done" << std::endl;
     fMovingOperation = kFALSE;
     moving = false;
+    if(fYouMayFireWhenReady>-1) {
+      // automatic mode was on
+      std::cout << "*** Executing script ... " << std::endl;
+      int err = gSystem->Exec("source Position_Data/Script.sh");
+      if(err!=0) {
+	std::cout << "!!!!!! script failure !!!!!!" << std::endl;
+      } else {
+	std::cout << "*** Script succesful " << std::endl;
+      }
+      // run another?
+      if(fYouMayFireWhenReady<fCells.size()) {
+	std::cout << std::endl << "**Moving to " << fCells[fYouMayFireWhenReady] << std::endl;
+	ChangeCoordsFromCell(fCells[fYouMayFireWhenReady++].Data());
+	MoveXY();
+      } else {
+	fYouMayFireWhenReady = -1;
+	std::cout << "*** Automatic Operation FINISH ***" << std::endl;
+	std::cout << "**********************************" << std::endl << std::endl;
+      }
+    }
   }
 }
 //====================
 void XYTable::ReadPositions() {
   //HERE WE READ FROM SCALER
-  Int_t xmicrons = (fXnow = fDXnow = fXmust)*1000;
-  Int_t ymicrons = (fYnow = fDYnow = fYmust)*1000;
+  Int_t xmicrons = (fXnow = fXmust = fDXnow = fDXmust)*1000;
+  Int_t ymicrons = (fYnow = fYmust = fDYnow = fDYmust)*1000;
   double motx=0;
   double moty=0;
   static bool allGood = true;
@@ -701,15 +721,15 @@ void XYTable::ReadPositions() {
     static bool first = true;
     if(first){
       //std::cout << "WTH" << std::endl;
-      fXmust = fXobj = fDXmust = fDXnow;
-      fYmust = fYobj = fDYmust = fDYnow;
+      fXmust = fXobj = fDXobj = fDXmust = fDXnow;
+      fYmust = fYobj = fDYobj = fDYmust = fDYnow;
       first = false;
     }
     fCellNow = WhereAmI();
     std::ofstream foutL( Form("%sLast.log",sPath.Data()));
     foutL << fCellNow.Data() << " " << fDXnow << " " << fDYnow << " ";
     foutL << motx << " " << moty << " ";
-    foutL << fSPMX << " " << fSPMY << std::endl;
+    foutL << fSPMX << " " << fSPMY << " " << fAngY << std::endl;
     foutL.close();
     //std::cout << "done..." << std::endl;
   }
@@ -819,6 +839,8 @@ XYTable::XYTable(TApplication *app, UInt_t w, UInt_t h) : TGMainFrame(gClient->G
   fGTYobj = NULL;
   fMovingOperation = kFALSE;
   fAngY = 0;
+  //fAngY = 45;
+  fYouMayFireWhenReady = -1;
 
   // ==== CONECTING DEVICES
   fMotor = new Velmex(devVelmex.Data());
@@ -845,25 +867,27 @@ XYTable::XYTable(TApplication *app, UInt_t w, UInt_t h) : TGMainFrame(gClient->G
   gClient->GetColorByName("red",  fPixelRed);
   gClient->GetColorByName("black",fPixelBlack);
   gClient->GetColorByName("green",fPixelGreen);
-  for(int r=0; r!=10; ++r)
-    for(int c=0; c!=19; ++c) {
-      fPreLoaded[r][c][0] = (-45 + 5*c)*TMath::Cos(fAngY/TMath::Pi()*180);
-      fPreLoaded[r][c][1] = -45 + 10*r;
-    }
   
   fXmust = fYmust = 0;
   std::ifstream finL( Form("%sLast.log",sPath.Data()));
-  int xx, yy;
+  Double_t xx, yy, trsh, ang;
   TString atmp;
-  finL >> atmp >> xx >> yy;
+  finL >> atmp >> xx >> yy >> trsh >> trsh >> trsh >> trsh >> ang;
   if(finL.good()) {
-    fXmust = xx;
-    fYmust = yy;
+    fDXmust = xx;
+    fDYmust = yy;
+    fAngY = ang;
   }
-  fXnow = fXobj = fXmust;
-  fYnow = fYobj = fYmust;
+  fXnow = fXobj = fXmust = fDXnow = fDXobj = fDXmust;
+  fYnow = fYobj = fYmust = fDYnow = fDYobj = fDYmust;
   finL.close();
   fLock = kFALSE;
+  Double_t desp = TMath::Sin(fAngY*TMath::Pi()/180.)*kRod;
+  for(int r=0; r!=10; ++r)
+    for(int c=0; c!=19; ++c) {
+      fPreLoaded[r][c][0] = (-45 + 5*c)*TMath::Cos(fAngY*TMath::Pi()/180.) + desp;
+      fPreLoaded[r][c][1] = -45 + 10*r;
+    }
   
   TGTab *tabcontainer = new TGTab(this,96,26);
   TGCompositeFrame *tab1 = tabcontainer->AddTab("Master Controler");
@@ -890,6 +914,11 @@ XYTable::XYTable(TApplication *app, UInt_t w, UInt_t h) : TGMainFrame(gClient->G
   fCallBusy->Connect("Timeout()", "XYTable", this, "ReadBusy()");
   fCallBusy->Start(0, kFALSE);
   fCallBusy->TurnOff();
+  
+  fCaptain = new TTimer();
+  //fCaptain->Connect("Timeout()", "XYTable", this, "YouMayFireWhenReady()");
+  //fCaptain->Start(500, kFALSE);
+  fCaptain->TurnOff();
   
   PrepareMove();
 }
